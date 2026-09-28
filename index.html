@@ -1,11 +1,1426 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>웹 호스팅</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>나만의 야구 선수 분석 스튜디오</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- html2pdf.js CDN for PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['Orbitron', 'monospace'],
+          },
+          colors: {
+            diamond: {
+              950: '#04070e',
+              900: '#070b14',
+              850: '#0c1322',
+              800: '#121c32',
+              700: '#1e2c4f',
+              600: '#2b3f6e',
+              accent: '#00f0ff',
+              emerald: '#10b981',
+              amber: '#f59e0b',
+              crimson: '#f43f5e'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #04070e;
+      color: #f1f5f9;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+    
+    .glass-panel {
+      background: rgba(14, 23, 42, 0.78);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+    }
+
+    .glass-input {
+      background: rgba(9, 14, 26, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      transition: all 0.2s ease;
+    }
+    .glass-input:focus {
+      border-color: #00f0ff;
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.35);
+      outline: none;
+    }
+
+    /* Range slider custom visual */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: #1e2c4f;
+      height: 5px;
+      border-radius: 4px;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 15px;
+      width: 15px;
+      border-radius: 50%;
+      background: #00f0ff;
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.7);
+      transition: transform 0.1s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #070b14;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e2c4f;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #00f0ff;
+    }
+
+    /* Print & PDF styling */
+    @media print {
+      body {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-surface {
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        color: #0f172a !important;
+        box-shadow: none !important;
+      }
+    }
+  </style>
 </head>
-<body>
-    git pages 입니다.
+<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-cyan-500 selection:text-black">
+
+  <header class="no-print sticky top-0 z-50 glass-panel border-b border-white/10 px-4 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 text-white font-black text-xl">
+        <i class="fa-solid fa-baseball-bat-ball"></i>
+      </div>
+      <div>
+        <h1 class="text-base lg:text-lg font-bold tracking-tight text-white flex items-center gap-2">
+          <span>나만의 야구 스카우팅 랩</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-mono">CUSTOM STUDIO</span>
+        </h1>
+        <p class="text-xs text-slate-400">선수 통산 기본·세부 데이터를 직접 입력하고 나만의 가중치 모델로 실시간 분석하세요</p>
+      </div>
+    </div>
+
+    <!-- Mode Selector: Batter vs Pitcher & PDF Export Action -->
+    <div class="flex items-center flex-wrap gap-2">
+      <div class="inline-flex p-1 bg-diamond-950 rounded-xl border border-white/10">
+        <button id="mode-batter-btn" onclick="switchPlayerType('batter')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-cyan-500 text-slate-950 shadow-md">
+          <i class="fa-solid fa-person-dots-from-line mr-1"></i> 타자 (Batter)
+        </button>
+        <button id="mode-pitcher-btn" onclick="switchPlayerType('pitcher')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-white">
+          <i class="fa-solid fa-baseball mr-1"></i> 투수 (Pitcher)
+        </button>
+      </div>
+
+      <!-- PDF Download Button -->
+      <button onclick="exportToPDF()" id="pdf-download-btn" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-900/30 border border-emerald-400/30 transition-all">
+        <i class="fa-solid fa-file-pdf"></i> PDF 저장하기
+      </button>
+
+      <button onclick="resetDataToBlank()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white glass-input hover:border-cyan-500/40 transition-colors" title="입력 데이터를 표준 초기값으로 복구합니다">
+        <i class="fa-solid fa-rotate-left text-cyan-400"></i> 초기화
+      </button>
+    </div>
+  </header>
+
+  <!-- Printable & Capturable Report Target Area -->
+  <div id="scouting-report-capture" class="w-full p-2 sm:p-4">
+    <main class="max-w-[1700px] w-full mx-auto grid grid-cols-1 xl:grid-cols-12 gap-5 flex-grow">
+
+      <!-- LEFT COLUMN: Profile & Simultaneous Dual Data Entry (Basic + Advanced) -->
+      <div class="xl:col-span-6 flex flex-col space-y-4">
+        
+        <!-- Card 1: Player Profile Details & Detailed Position Picker -->
+        <div class="glass-panel rounded-2xl p-4 lg:p-5 border border-white/10 relative overflow-hidden">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold tracking-wider text-cyan-400 uppercase flex items-center gap-1.5">
+              <i class="fa-solid fa-id-card"></i> 대상 선수 프로필 & 포지션 설정
+            </span>
+            <span class="text-[11px] text-slate-400 font-mono">선수 프리셋 없음 · 100% 사용자 지정</span>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="col-span-2 sm:col-span-1">
+              <label class="text-[11px] text-slate-400 block mb-1">선수명</label>
+              <input type="text" id="player-name" value="분석 대상 선수" oninput="updateProfile()" class="w-full glass-input rounded-xl px-3 py-1.5 text-xs sm:text-sm font-semibold text-white">
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-400 block mb-1">소속 / 연도</label>
+              <input type="text" id="player-team" value="KBO / 통산" oninput="updateProfile()" class="w-full glass-input rounded-xl px-3 py-1.5 text-xs sm:text-sm text-slate-200">
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-400 block mb-1">통산 경기 / 타석(이닝)</label>
+              <input type="text" id="player-career-span" value="통산 540G / 2,150타석" oninput="updateProfile()" class="w-full glass-input rounded-xl px-3 py-1.5 text-xs sm:text-sm text-slate-200">
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-400 block mb-1">포지션 선택</label>
+              <select id="player-position-select" onchange="handlePositionChange()" class="w-full glass-input rounded-xl px-2.5 py-1.5 text-xs sm:text-sm font-bold text-cyan-300">
+                <!-- Dynamically populated based on Batter / Pitcher -->
+              </select>
+            </div>
+          </div>
+
+          <!-- Position Context Badge & Adjustment Guide -->
+          <div class="mt-3 pt-3 border-t border-white/5 flex flex-wrap items-center justify-between text-[11px] text-slate-400 gap-2">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-mono border border-cyan-500/30" id="pos-tag-display">CF (중견수)</span>
+              <span id="pos-desc-display">외야 센터라인으로 넓은 수비 범위와 빠른 발 필수</span>
+            </div>
+            <span class="text-slate-500 font-mono">가중치 커스텀 연동</span>
+          </div>
+        </div>
+
+        <!-- Card 2: Simultaneous Dual Data Entry (기본 데이터 & 세부 데이터 동시 입력) -->
+        <div class="glass-panel rounded-2xl p-4 lg:p-5 border border-white/10 flex flex-col space-y-4">
+          
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/5">
+            <div class="flex items-center gap-2">
+              <button id="tab-data-btn" onclick="switchDataTab('input')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 flex items-center gap-1.5 shadow">
+                <i class="fa-solid fa-sliders"></i> 스탯 수치 동시 입력
+              </button>
+              <button id="tab-weight-btn" onclick="switchDataTab('weights')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-scale-balanced"></i> 나만의 가중치(%) 설정
+              </button>
+            </div>
+
+            <div class="flex items-center gap-2 no-print">
+              <button onclick="autoNormalizeWeights()" class="text-[11px] px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30 font-medium transition-all">
+                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>가중치 100% 균등분배
+              </button>
+            </div>
+          </div>
+
+          <!-- DUAL SIMULTANEOUS CONTAINER: Basic & Advanced side by side -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            
+            <!-- Section A: 기본 데이터 (Traditional Classic Stats) -->
+            <div class="space-y-2.5 flex flex-col">
+              <div class="flex items-center justify-between pb-1 border-b border-emerald-500/20">
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981]"></span>
+                  <h3 class="text-xs sm:text-sm font-bold text-white">기본 데이터 (클래식)</h3>
+                </div>
+                <span class="text-[11px] text-emerald-400 font-mono font-semibold" id="basic-weight-summary">비중: 50%</span>
+              </div>
+              <div id="basic-metrics-container" class="space-y-2 flex-grow">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+
+            <!-- Section B: 세부 데이터 (Advanced / Statcast Stats) -->
+            <div class="space-y-2.5 flex flex-col">
+              <div class="flex items-center justify-between pb-1 border-b border-cyan-500/20">
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff]"></span>
+                  <h3 class="text-xs sm:text-sm font-bold text-white">세부 데이터 (세이버·스탯캐스트)</h3>
+                </div>
+                <span class="text-[11px] text-cyan-400 font-mono font-semibold" id="adv-weight-summary">비중: 50%</span>
+              </div>
+              <div id="adv-metrics-container" class="space-y-2 flex-grow">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Total Weight Status Checker -->
+          <div class="p-2.5 rounded-xl bg-diamond-950 border border-white/5 flex items-center justify-between text-xs font-mono">
+            <span class="text-slate-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-check text-slate-500" id="weight-status-icon"></i>
+              가중치 총합계:
+            </span>
+            <span id="weight-total-display" class="font-bold text-emerald-400 text-sm">100% (적정 100%)</span>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: Dynamic Graphic Studio & Visual Breakdown -->
+      <div class="xl:col-span-6 flex flex-col space-y-4">
+
+        <!-- TOP METRIC CARDS: Overall Custom Grade & Dual Breakdown -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          
+          <!-- Score Card -->
+          <div class="sm:col-span-2 glass-panel rounded-2xl p-4 lg:p-5 border border-cyan-500/30 bg-gradient-to-br from-diamond-850 to-diamond-900 flex flex-col justify-between relative overflow-hidden">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-xs font-bold text-cyan-400 uppercase tracking-wider">나만의 종합 스카우팅 지수</span>
+                <p class="text-[11px] text-slate-400">입력한 통산 기본·세부 스탯과 가중치로 환산</p>
+              </div>
+              <div id="player-tier-badge" class="font-mono text-xs px-2.5 py-1 rounded-full font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/40">
+                GRADE A+
+              </div>
+            </div>
+
+            <div class="my-2.5 flex items-baseline gap-3">
+              <span id="custom-overall-score" class="text-4xl lg:text-5xl font-black font-mono tracking-tight text-white drop-shadow-[0_0_20px_rgba(0,240,255,0.4)]">
+                88.5
+              </span>
+              <span class="text-xs font-bold text-slate-400 font-mono">/ 100 PTS</span>
+            </div>
+
+            <!-- Dual Component Balance Progress Bar -->
+            <div>
+              <div class="flex justify-between text-[11px] font-mono text-slate-300 mb-1">
+                <span class="text-emerald-400">기본 지표: <span id="basic-score-portion">00.0</span>점</span>
+                <span class="text-cyan-400">세부 지표: <span id="adv-score-portion">00.0</span>점</span>
+              </div>
+              <div class="w-full bg-slate-950 rounded-full h-2.5 overflow-hidden flex border border-white/5">
+                <div id="bar-portion-basic" class="bg-emerald-400 h-full transition-all duration-200" style="width: 50%;"></div>
+                <div id="bar-portion-adv" class="bg-cyan-400 h-full transition-all duration-200" style="width: 50%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Strongest Weapon Card -->
+          <div class="glass-panel rounded-2xl p-4 lg:p-5 border border-white/10 flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-crown text-amber-400"></i> 최대 강점 지표
+              </span>
+              <span class="text-[10px] text-slate-400 font-mono">PEAK</span>
+            </div>
+            <div class="my-2">
+              <p id="top-skill-title" class="text-sm lg:text-base font-bold text-white truncate">-</p>
+              <p id="top-skill-desc" class="text-[11px] text-slate-400 mt-0.5 line-clamp-2">-</p>
+            </div>
+            <div class="text-xs text-amber-300 font-mono font-bold flex items-center gap-1" id="top-skill-rating">
+              환산: 00.0 / 100
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Visual Display Card: Interactive Dynamic Graphics -->
+        <div class="glass-panel rounded-2xl p-4 lg:p-5 border border-white/10 flex flex-col space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-white/5">
+            <div class="flex items-center space-x-2 no-print">
+              <button id="view-radar-btn" onclick="setGraphicView('radar')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 flex items-center gap-1.5 shadow">
+                <i class="fa-solid fa-chart-pie"></i> 통합 육각형 레이더
+              </button>
+              <button id="view-compare-btn" onclick="setGraphicView('bar')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-chart-simple"></i> 기본 vs 세부 랭킹 바
+              </button>
+              <button id="view-field-btn" onclick="setGraphicView('field')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-diamond"></i> 다이아몬드 스킬맵
+              </button>
+            </div>
+
+            <div class="text-[11px] text-slate-400 flex items-center gap-2 font-mono">
+              <span class="inline-block w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff]"></span>
+              <span id="chart-legend-player">분석 대상 선수</span>
+              <span class="inline-block w-2 h-2 rounded-full bg-slate-600 ml-1"></span>
+              <span>리그 평균 기준(50)</span>
+            </div>
+          </div>
+
+          <!-- Graphic Container 1: Chart.js Canvas -->
+          <div id="chart-canvas-wrapper" class="relative w-full h-[320px] flex items-center justify-center">
+            <canvas id="scoutingChart"></canvas>
+          </div>
+
+          <!-- Graphic Container 2: Dynamic SVG Baseball Diamond Field Skill Map -->
+          <div id="field-graphic-wrapper" class="hidden relative w-full h-[320px] bg-diamond-950/70 rounded-xl border border-white/5 flex items-center justify-center p-2 overflow-hidden">
+            <svg id="baseball-diamond-svg" class="w-full h-full max-w-[440px]" viewBox="0 0 400 320">
+              <!-- Outfield Grass Arc -->
+              <path d="M 20 230 A 210 210 0 0 1 380 230 L 200 290 Z" fill="#0c201d" stroke="#143b35" stroke-width="1.5" />
+              <!-- Infield Dirt Diamond -->
+              <polygon points="200,80 280,160 200,240 120,160" fill="#201c18" stroke="#3b322a" stroke-width="1.5" />
+              <!-- Infield Lines -->
+              <line x1="200" y1="240" x2="360" y2="80" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="3,3" />
+              <line x1="200" y1="240" x2="40" y2="80" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="3,3" />
+              <!-- Bases -->
+              <polygon points="200,240 195,245 200,250 205,245" fill="#f8fafc" /> <!-- Home -->
+              <polygon points="280,160 285,160 280,155 275,160" fill="#f8fafc" /> <!-- 1B -->
+              <polygon points="200,80 205,80 200,75 195,80" fill="#f8fafc" /> <!-- 2B -->
+              <polygon points="120,160 125,160 120,155 115,160" fill="#f8fafc" /> <!-- 3B -->
+              <!-- Pitcher Mound -->
+              <circle cx="200" cy="165" r="7" fill="#475569" stroke="#94a3b8" stroke-width="1" />
+
+              <!-- Dynamic Skill Radar Overlay on Diamond -->
+              <polygon id="svg-skill-polygon" points="200,165 200,165 200,165 200,165 200,165 200,165" fill="rgba(0, 240, 255, 0.25)" stroke="#00f0ff" stroke-width="2" />
+              
+              <!-- Graphic Nodes with Dynamic Glows -->
+              <g id="svg-nodes-group"></g>
+
+              <!-- Position Target Marker -->
+              <g id="svg-position-marker"></g>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Card 4: Automated Scouting Report -->
+        <div class="glass-panel rounded-2xl p-4 lg:p-5 border border-white/10 flex flex-col space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-file-waveform text-cyan-400"></i>
+              <span>실시간 스카우팅 종합 소견 (Custom Scouting Report)</span>
+            </h3>
+            <button onclick="copyScoutingCard()" class="no-print text-xs px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 transition-all flex items-center gap-1.5">
+              <i class="fa-solid fa-copy"></i>
+              <span id="copy-btn-text">텍스트 복사</span>
+            </button>
+          </div>
+
+          <div id="scouting-text-card" class="bg-diamond-950/90 rounded-xl p-4 border border-white/5 text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
+            <!-- Populated in JS -->
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Toast alert notification -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 glass-panel border border-cyan-500/40 bg-diamond-900 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs sm:text-sm text-white pointer-events-none">
+    <i class="fa-solid fa-circle-check text-cyan-400 text-base"></i>
+    <span id="toast-message">알림</span>
+  </div>
+
+  <script>
+    let currentType = 'batter'; // 'batter' | 'pitcher'
+    let currentPosition = 'CF';
+    let currentView = 'radar'; // 'radar' | 'bar' | 'field'
+    let activeTab = 'input'; // 'input' | 'weights'
+    let chartInstance = null;
+
+    // Detailed position taxonomy for Batter and Pitcher
+    const POSITIONS = {
+      batter: [
+        { id: 'C', name: '포수 (C)', desc: '포수 수비력 및 투수 리드 최우선 / 타격 보정치 높음', fieldX: 200, fieldY: 260 },
+        { id: '1B', name: '1루수 (1B)', desc: '코너 내야수로 강력한 순수 파워 및 타점 생산성 필수', fieldX: 280, fieldY: 160 },
+        { id: '2B', name: '2루수 (2B)', desc: '키스톤 콤비로 정밀한 콘택트와 기동력, 수비 범위 요구', fieldX: 240, fieldY: 110 },
+        { id: '3B', name: '3루수 (3B)', desc: '핫코너로 강한 송구 능력과 중장거리 장타력 필요', fieldX: 120, fieldY: 160 },
+        { id: 'SS', name: '유격수 (SS)', desc: '내야 사령탑으로 가장 높은 수비 기여도와 민첩성 요구', fieldX: 160, fieldY: 110 },
+        { id: 'LF', name: '좌익수 (LF)', desc: '코너 외야수로 안정적인 타격 생산성과 장타력 우선', fieldX: 90, fieldY: 90 },
+        { id: 'CF', name: '중견수 (CF)', desc: '외야 센터라인으로 넓은 수비 범위와 빠른 발 필수', fieldX: 200, fieldY: 60 },
+        { id: 'RF', name: '우익수 (RF)', desc: '깊은 송구 강견과 외야 장타 생산력을 겸비한 포지션', fieldX: 310, fieldY: 90 },
+        { id: 'DH', name: '지명타자 (DH)', desc: '수비 부담 없이 오직 최상급의 순수 타격 생산성 증명 필요', fieldX: 200, fieldY: 210 }
+      ],
+      pitcher: [
+        { id: 'SP', name: '선발 투수 (SP)', desc: '긴 이닝을 책임지는 스테미너, 다양한 구종과 경기 운영력', fieldX: 200, fieldY: 165 },
+        { id: 'RP_SWING', name: '롱릴리프 / 스윙맨 (Swing RP)', desc: '조기 강판 대비 멀티 이닝 소화 및 위기 관리 능력', fieldX: 160, fieldY: 190 },
+        { id: 'RP_HOLD', name: '셋업맨 / 필승조 (Setup RP)', desc: '경기 후반 리드를 지키는 압도적 탈삼진 구위와 헛스윙 유도', fieldX: 240, fieldY: 190 },
+        { id: 'CP', name: '마무리 투수 (Closer CP)', desc: '9회 1이닝을 닫는 최고 구속과 강력한 실점 억제력', fieldX: 200, fieldY: 140 }
+      ]
+    };
+
+    // Full Metrics Catalog: Divided into Basic (Classic) & Advanced (Sabermetrics/Statcast)
+    const METRICS_CATALOG = {
+      batter: {
+        basic: [
+          {
+            id: 'avg',
+            name: '타율 (AVG)',
+            desc: '통산 안타 / 타수',
+            min: 0.180,
+            max: 0.380,
+            step: 0.005,
+            unit: '',
+            defaultVal: 0.275,
+            defaultWeight: 10,
+            reverse: false
+          },
+          {
+            id: 'obp',
+            name: '출루율 (OBP)',
+            desc: '출루 성공 확률',
+            min: 0.260,
+            max: 0.460,
+            step: 0.005,
+            unit: '',
+            defaultVal: 0.350,
+            defaultWeight: 15,
+            reverse: false
+          },
+          {
+            id: 'slg',
+            name: '장타율 (SLG)',
+            desc: '루타수 / 타수',
+            min: 0.300,
+            max: 0.650,
+            step: 0.005,
+            unit: '',
+            defaultVal: 0.450,
+            defaultWeight: 10,
+            reverse: false
+          },
+          {
+            id: 'hr',
+            name: '연평균 홈런 (HR)',
+            desc: '144경기 환산 홈런',
+            min: 0,
+            max: 50,
+            step: 1,
+            unit: '개',
+            defaultVal: 20,
+            defaultWeight: 10,
+            reverse: false
+          },
+          {
+            id: 'sb',
+            name: '연평균 도루 (SB)',
+            desc: '144경기 환산 도루',
+            min: 0,
+            max: 50,
+            step: 1,
+            unit: '개',
+            defaultVal: 10,
+            defaultWeight: 5,
+            reverse: false
+          }
+        ],
+        adv: [
+          {
+            id: 'wrc_plus',
+            name: '조정 득점창출력 (wRC+)',
+            desc: '파크팩터/시대 보정 (리그평균=100)',
+            min: 60,
+            max: 190,
+            step: 1,
+            unit: '',
+            defaultVal: 125,
+            defaultWeight: 15,
+            reverse: false
+          },
+          {
+            id: 'iso',
+            name: '순수 장타율 (ISO)',
+            desc: 'SLG - AVG (순수 엑스트라 베이스)',
+            min: 0.080,
+            max: 0.330,
+            step: 0.005,
+            unit: '',
+            defaultVal: 0.175,
+            defaultWeight: 10,
+            reverse: false
+          },
+          {
+            id: 'hard_hit',
+            name: '하드힛 비율 (HardHit%)',
+            desc: '95mph 이상 강한 타구 속도 비율',
+            min: 25.0,
+            max: 60.0,
+            step: 0.5,
+            unit: '%',
+            defaultVal: 40.0,
+            defaultWeight: 10,
+            reverse: false
+          },
+          {
+            id: 'bb_rate',
+            name: '볼넷 비율 (BB%)',
+            desc: '선구안과 타석 인내심',
+            min: 4.0,
+            max: 20.0,
+            step: 0.2,
+            unit: '%',
+            defaultVal: 9.5,
+            defaultWeight: 10,
+            reverse: false
+          },
+          {
+            id: 'k_rate',
+            name: '삼진 억제율 (K% 역산)',
+            desc: '삼진 회피 및 콘택트 지속성',
+            min: 8.0,
+            max: 32.0,
+            step: 0.5,
+            unit: '%',
+            defaultVal: 18.0,
+            defaultWeight: 5,
+            reverse: true
+          }
+        ]
+      },
+      pitcher: {
+        basic: [
+          {
+            id: 'era',
+            name: '평균자책점 (ERA)',
+            desc: '9이닝당 허용 자책점',
+            min: 1.80,
+            max: 6.00,
+            step: 0.05,
+            unit: '',
+            defaultVal: 3.60,
+            defaultWeight: 15,
+            reverse: true
+          },
+          {
+            id: 'whip',
+            name: '이닝당 출루허용률 (WHIP)',
+            desc: '(피안타+볼넷) / 투구 이닝',
+            min: 0.90,
+            max: 1.65,
+            step: 0.01,
+            unit: '',
+            defaultVal: 1.25,
+            defaultWeight: 15,
+            reverse: true
+          },
+          {
+            id: 'ip',
+            name: '연평균 소화 이닝 (IP)',
+            desc: '선발/불펜 내구성 및 워크로드',
+            min: 40,
+            max: 210,
+            step: 2,
+            unit: '이닝',
+            defaultVal: 140,
+            defaultWeight: 10,
+            reverse: false
+          },
+          {
+            id: 'baa',
+            name: '피안타율 (BAA)',
+            desc: '상대 타자 피안타 억제율',
+            min: 0.180,
+            max: 0.320,
+            step: 0.005,
+            unit: '',
+            defaultVal: 0.250,
+            defaultWeight: 10,
+            reverse: true
+          }
+        ],
+        adv: [
+          {
+            id: 'fip',
+            name: '수비무관 자책점 (FIP)',
+            desc: '수비 배제 홈런·볼넷·삼진 독립 평가',
+            min: 2.20,
+            max: 5.50,
+            step: 0.05,
+            unit: '',
+            defaultVal: 3.50,
+            defaultWeight: 15,
+            reverse: true
+          },
+          {
+            id: 'k_rate',
+            name: '탈삼진율 (K%)',
+            desc: '타자를 압도하는 순수 구위 및 스터프',
+            min: 14.0,
+            max: 38.0,
+            step: 0.5,
+            unit: '%',
+            defaultVal: 24.0,
+            defaultWeight: 10,
+            reverse: false
+          },
+          {
+            id: 'bb_rate',
+            name: '볼넷 억제율 (BB% 역산)',
+            desc: '공짜 출루를 억제하는 존 제구력',
+            min: 3.5,
+            max: 13.0,
+            step: 0.2,
+            unit: '%',
+            defaultVal: 7.2,
+            defaultWeight: 10,
+            reverse: true
+          },
+          {
+            id: 'swstr_rate',
+            name: '헛스윙 유도율 (SwStr%)',
+            desc: '타자 배트 헛스윙 유도 비율',
+            min: 7.0,
+            max: 18.0,
+            step: 0.2,
+            unit: '%',
+            defaultVal: 11.5,
+            defaultWeight: 5,
+            reverse: false
+          },
+          {
+            id: 'hard_hit_allow',
+            name: '정타 억제율 (HardHit% 역산)',
+            desc: '강한 배럴 타구 허용 억제력',
+            min: 28.0,
+            max: 48.0,
+            step: 0.5,
+            unit: '%',
+            defaultVal: 35.0,
+            defaultWeight: 5,
+            reverse: true
+          },
+          {
+            id: 'gb_rate',
+            name: '땅볼 유도율 (GB%)',
+            desc: '장타/홈런을 억제하는 투구 궤적',
+            min: 32.0,
+            max: 60.0,
+            step: 0.5,
+            unit: '%',
+            defaultVal: 45.0,
+            defaultWeight: 5,
+            reverse: false
+          }
+        ]
+      }
+    };
+
+    // User values & custom weights storage
+    let activeValues = {};
+    let activeWeights = {};
+
+    function initApp() {
+      populatePositionDropdown();
+      setupState();
+      renderInputs();
+      initChart();
+      recalculateAll();
+    }
+
+    function populatePositionDropdown() {
+      const select = document.getElementById('player-position-select');
+      select.innerHTML = '';
+      const list = POSITIONS[currentType];
+      
+      list.forEach(pos => {
+        const opt = document.createElement('option');
+        opt.value = pos.id;
+        opt.textContent = pos.name;
+        if (pos.id === currentPosition) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      if (!list.find(p => p.id === currentPosition)) {
+        currentPosition = list[0].id;
+        select.value = currentPosition;
+      }
+      updatePositionInfo();
+    }
+
+    function handlePositionChange() {
+      const select = document.getElementById('player-position-select');
+      currentPosition = select.value;
+      updatePositionInfo();
+      recalculateAll();
+    }
+
+    function updatePositionInfo() {
+      const list = POSITIONS[currentType];
+      const match = list.find(p => p.id === currentPosition) || list[0];
+      document.getElementById('pos-tag-display').textContent = match.name;
+      document.getElementById('pos-desc-display').textContent = match.desc;
+    }
+
+    function setupState() {
+      const basicList = METRICS_CATALOG[currentType].basic;
+      const advList = METRICS_CATALOG[currentType].adv;
+
+      activeValues = {};
+      activeWeights = {};
+
+      [...basicList, ...advList].forEach(item => {
+        activeValues[item.id] = item.defaultVal;
+        activeWeights[item.id] = item.defaultWeight;
+      });
+    }
+
+    function renderInputs() {
+      const basicContainer = document.getElementById('basic-metrics-container');
+      const advContainer = document.getElementById('adv-metrics-container');
+
+      basicContainer.innerHTML = '';
+      advContainer.innerHTML = '';
+
+      const basicList = METRICS_CATALOG[currentType].basic;
+      const advList = METRICS_CATALOG[currentType].adv;
+
+      renderMetricGroup(basicList, basicContainer, 'basic');
+      renderMetricGroup(advList, advContainer, 'adv');
+      updateWeightTotalDisplay();
+    }
+
+    function renderMetricGroup(items, container, groupKey) {
+      items.forEach(m => {
+        const row = document.createElement('div');
+        row.className = 'glass-panel rounded-xl p-2.5 border border-white/5 hover:border-cyan-500/30 transition-all';
+        
+        row.innerHTML = `
+          <div class="flex justify-between items-center mb-1">
+            <div class="pr-2 truncate">
+              <span class="text-xs font-semibold text-slate-200 block truncate" title="${m.name}">${m.name}</span>
+              <span class="text-[10px] text-slate-400 block truncate">${m.desc}</span>
+            </div>
+            
+            <div class="flex items-center space-x-1.5 flex-shrink-0">
+              ${activeTab === 'input' ? `
+                <input type="number" 
+                  id="num-${m.id}" 
+                  value="${activeValues[m.id]}" 
+                  min="${m.min}" 
+                  max="${m.max}" 
+                  step="${m.step}" 
+                  oninput="handleNumericChange('${m.id}', this.value)"
+                  class="w-20 text-right glass-input rounded-lg px-2 py-1 text-xs font-mono font-bold text-cyan-300">
+                <span class="text-[10px] text-slate-400 font-mono w-5">${m.unit}</span>
+              ` : `
+                <div class="flex items-center gap-1">
+                  <span class="text-[10px] text-slate-400">가중치</span>
+                  <input type="number" 
+                    id="weight-num-${m.id}" 
+                    value="${activeWeights[m.id]}" 
+                    min="0" 
+                    max="60" 
+                    step="1" 
+                    oninput="handleWeightChange('${m.id}', this.value)"
+                    class="w-14 text-right glass-input rounded-lg px-1.5 py-1 text-xs font-mono font-bold text-amber-300">
+                  <span class="text-[10px] text-amber-300 font-mono">%</span>
+                </div>
+              `}
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 mt-1.5">
+            ${activeTab === 'input' ? `
+              <span class="text-[9px] text-slate-500 font-mono">${m.min}</span>
+              <input type="range" 
+                id="slider-${m.id}" 
+                min="${m.min}" 
+                max="${m.max}" 
+                step="${m.step}" 
+                value="${activeValues[m.id]}" 
+                oninput="handleSliderChange('${m.id}', this.value)"
+                class="w-full">
+              <span class="text-[9px] text-slate-500 font-mono">${m.max}</span>
+            ` : `
+              <span class="text-[9px] text-slate-500 font-mono">0%</span>
+              <input type="range" 
+                id="weight-slider-${m.id}" 
+                min="0" 
+                max="50" 
+                step="1" 
+                value="${activeWeights[m.id]}" 
+                oninput="handleWeightChange('${m.id}', this.value)"
+                class="w-full accent-amber-400">
+              <span class="text-[9px] text-slate-500 font-mono">50%</span>
+            `}
+          </div>
+        `;
+
+        container.appendChild(row);
+      });
+    }
+
+    function handleNumericChange(id, val) {
+      const num = parseFloat(val);
+      if (!isNaN(num)) {
+        activeValues[id] = num;
+        const slider = document.getElementById(`slider-${id}`);
+        if (slider) slider.value = num;
+        recalculateAll();
+      }
+    }
+
+    function handleSliderChange(id, val) {
+      const num = parseFloat(val);
+      activeValues[id] = num;
+      const numInput = document.getElementById(`num-${id}`);
+      if (numInput) numInput.value = num;
+      recalculateAll();
+    }
+
+    function handleWeightChange(id, val) {
+      const num = Math.max(0, parseInt(val, 10) || 0);
+      activeWeights[id] = num;
+      
+      const wSlider = document.getElementById(`weight-slider-${id}`);
+      const wNum = document.getElementById(`weight-num-${id}`);
+      if (wSlider) wSlider.value = num;
+      if (wNum) wNum.value = num;
+
+      updateWeightTotalDisplay();
+      recalculateAll();
+    }
+
+    function switchDataTab(tab) {
+      activeTab = tab;
+      const dataBtn = document.getElementById('tab-data-btn');
+      const weightBtn = document.getElementById('tab-weight-btn');
+
+      if (tab === 'input') {
+        dataBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 flex items-center gap-1.5 shadow';
+        weightBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white flex items-center gap-1.5';
+      } else {
+        weightBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-400 text-slate-950 flex items-center gap-1.5 shadow';
+        dataBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white flex items-center gap-1.5';
+      }
+
+      renderInputs();
+    }
+
+    function updateWeightTotalDisplay() {
+      const basicList = METRICS_CATALOG[currentType].basic;
+      const advList = METRICS_CATALOG[currentType].adv;
+
+      let basicSum = 0;
+      let advSum = 0;
+
+      basicList.forEach(m => basicSum += (activeWeights[m.id] || 0));
+      advList.forEach(m => advSum += (activeWeights[m.id] || 0));
+
+      const total = basicSum + advSum;
+
+      document.getElementById('basic-weight-summary').textContent = `비중: ${basicSum}%`;
+      document.getElementById('adv-weight-summary').textContent = `비중: ${advSum}%`;
+
+      const display = document.getElementById('weight-total-display');
+      const icon = document.getElementById('weight-status-icon');
+
+      display.textContent = `${total}% ${total === 100 ? '(적정 100%)' : '(합계 불일치)'}`;
+
+      if (total === 100) {
+        display.className = 'font-bold text-emerald-400 text-sm font-mono';
+        icon.className = 'fa-solid fa-circle-check text-emerald-400';
+      } else if (total > 100) {
+        display.className = 'font-bold text-rose-400 text-sm font-mono';
+        icon.className = 'fa-solid fa-circle-exclamation text-rose-400';
+      } else {
+        display.className = 'font-bold text-amber-400 text-sm font-mono';
+        icon.className = 'fa-solid fa-circle-exclamation text-amber-400';
+      }
+    }
+
+    function autoNormalizeWeights() {
+      const allMetrics = [...METRICS_CATALOG[currentType].basic, ...METRICS_CATALOG[currentType].adv];
+      const count = allMetrics.length;
+      const base = Math.floor(100 / count);
+      let remainder = 100 - (base * count);
+
+      allMetrics.forEach((m, idx) => {
+        const val = base + (idx < remainder ? 1 : 0);
+        activeWeights[m.id] = val;
+      });
+
+      renderInputs();
+      recalculateAll();
+      showToast('기본 및 세부 지표 가중치를 100% 균등 분배했습니다.');
+    }
+
+    function normalizeScore(metricDef, value) {
+      let score;
+      if (metricDef.reverse) {
+        score = ((metricDef.max - value) / (metricDef.max - metricDef.min)) * 100;
+      } else {
+        score = ((value - metricDef.min) / (metricDef.max - metricDef.min)) * 100;
+      }
+      return Math.min(100, Math.max(0, score));
+    }
+
+    function recalculateAll() {
+      const basicList = METRICS_CATALOG[currentType].basic;
+      const advList = METRICS_CATALOG[currentType].adv;
+      const allItems = [...basicList, ...advList];
+
+      let totalWeightedScore = 0;
+      let totalWeight = 0;
+
+      let basicWeightedScore = 0;
+      let basicWeightSum = 0;
+
+      let advWeightedScore = 0;
+      let advWeightSum = 0;
+
+      const scoredItems = [];
+
+      allItems.forEach(item => {
+        const raw = activeValues[item.id];
+        const weight = activeWeights[item.id] || 0;
+        const score = normalizeScore(item, raw);
+        const isBasic = basicList.some(b => b.id === item.id);
+
+        scoredItems.push({
+          id: item.id,
+          name: item.name,
+          desc: item.desc,
+          score: score,
+          weight: weight,
+          isBasic: isBasic,
+          rawVal: raw,
+          unit: item.unit
+        });
+
+        totalWeightedScore += score * weight;
+        totalWeight += weight;
+
+        if (isBasic) {
+          basicWeightedScore += score * weight;
+          basicWeightSum += weight;
+        } else {
+          advWeightedScore += score * weight;
+          advWeightSum += weight;
+        }
+      });
+
+      const finalScore = totalWeight > 0 ? (totalWeightedScore / totalWeight) : 50.0;
+      const basicAvg = basicWeightSum > 0 ? (basicWeightedScore / basicWeightSum) : 50.0;
+      const advAvg = advWeightSum > 0 ? (advWeightedScore / advWeightSum) : 50.0;
+
+      document.getElementById('custom-overall-score').textContent = finalScore.toFixed(1);
+      document.getElementById('basic-score-portion').textContent = basicAvg.toFixed(1);
+      document.getElementById('adv-score-portion').textContent = advAvg.toFixed(1);
+
+      const basicWidth = (basicWeightSum / (totalWeight || 1)) * 100;
+      const advWidth = 100 - basicWidth;
+      document.getElementById('bar-portion-basic').style.width = `${basicWidth}%`;
+      document.getElementById('bar-portion-adv').style.width = `${advWidth}%`;
+
+      updateTierBadge(finalScore);
+
+      const sorted = [...scoredItems].sort((a, b) => b.score - a.score);
+      const topSkill = sorted[0];
+      document.getElementById('top-skill-title').textContent = topSkill.name.split(' (')[0];
+      document.getElementById('top-skill-desc').textContent = topSkill.desc;
+      document.getElementById('top-skill-rating').textContent = `환산 점수: ${topSkill.score.toFixed(1)} / 100`;
+
+      updateGraphicViews(scoredItems);
+      generateScoutingNarrative(finalScore, basicAvg, advAvg, sorted);
+    }
+
+    function updateTierBadge(score) {
+      let tier = 'GRADE C (보완 필요)';
+      let style = 'text-rose-300 bg-rose-950/80 border-rose-400';
+
+      if (score >= 92) {
+        tier = 'GRADE S+ (MVP/리그 최상위)';
+        style = 'text-cyan-300 bg-cyan-950/90 border-cyan-400 shadow-[0_0_15px_rgba(0,240,255,0.4)]';
+      } else if (score >= 84) {
+        tier = 'GRADE S (리그 올스타급)';
+        style = 'text-blue-300 bg-blue-950/80 border-blue-400';
+      } else if (score >= 74) {
+        tier = 'GRADE A+ (확고한 주전급)';
+        style = 'text-emerald-300 bg-emerald-950/80 border-emerald-400';
+      } else if (score >= 64) {
+        tier = 'GRADE B (견고한 로테이션/플래툰)';
+        style = 'text-amber-300 bg-amber-950/80 border-amber-400';
+      }
+
+      const badge = document.getElementById('player-tier-badge');
+      badge.textContent = tier;
+      badge.className = `font-mono text-xs px-2.5 py-1 rounded-full font-bold border transition-all ${style}`;
+    }
+
+    function initChart() {
+      const ctx = document.getElementById('scoutingChart').getContext('2d');
+      
+      chartInstance = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: '선수 환산 지수',
+              data: [],
+              backgroundColor: 'rgba(0, 240, 255, 0.25)',
+              borderColor: '#00f0ff',
+              borderWidth: 2,
+              pointBackgroundColor: '#00f0ff',
+              pointBorderColor: '#ffffff',
+              pointRadius: 4,
+              pointHoverRadius: 6
+            },
+            {
+              label: '리그 평균 기준 (50점)',
+              data: [],
+              borderColor: 'rgba(255, 255, 255, 0.25)',
+              borderWidth: 1.5,
+              borderDash: [4, 4],
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              angleLines: { color: 'rgba(255, 255, 255, 0.08)' },
+              grid: { color: 'rgba(255, 255, 255, 0.08)' },
+              pointLabels: {
+                color: '#cbd5e1',
+                font: { family: 'Inter', size: 10, weight: '600' }
+              },
+              ticks: { display: false },
+              suggestedMin: 15,
+              suggestedMax: 100
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0c1322',
+              borderColor: '#00f0ff',
+              borderWidth: 1,
+              titleFont: { size: 12, weight: 'bold' },
+              callbacks: {
+                label: function(ctx) {
+                  return ` ${ctx.dataset.label}: ${ctx.raw.toFixed(1)}점`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateGraphicViews(scoredItems) {
+      if (!chartInstance) return;
+
+      const labels = scoredItems.map(item => item.name.split(' (')[0]);
+      const scores = scoredItems.map(item => item.score);
+
+      chartInstance.data.labels = labels;
+      chartInstance.data.datasets[0].data = scores;
+      chartInstance.data.datasets[1].data = new Array(scores.length).fill(50);
+      chartInstance.update();
+
+      updateDiamondSvg(scoredItems);
+    }
+
+    function updateDiamondSvg(items) {
+      const nodesGroup = document.getElementById('svg-nodes-group');
+      const poly = document.getElementById('svg-skill-polygon');
+      const posMarker = document.getElementById('svg-position-marker');
+      if (!nodesGroup || !poly || !posMarker) return;
+
+      nodesGroup.innerHTML = '';
+      posMarker.innerHTML = '';
+
+      const posDef = POSITIONS[currentType].find(p => p.id === currentPosition);
+      if (posDef) {
+        const markerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        markerCircle.setAttribute('cx', posDef.fieldX);
+        markerCircle.setAttribute('cy', posDef.fieldY);
+        markerCircle.setAttribute('r', '10');
+        markerCircle.setAttribute('fill', 'rgba(245, 158, 11, 0.25)');
+        markerCircle.setAttribute('stroke', '#f59e0b');
+        markerCircle.setAttribute('stroke-width', '2');
+        markerCircle.setAttribute('stroke-dasharray', '3,3');
+        posMarker.appendChild(markerCircle);
+
+        const posText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        posText.setAttribute('x', posDef.fieldX);
+        posText.setAttribute('y', posDef.fieldY - 14);
+        posText.setAttribute('text-anchor', 'middle');
+        posText.setAttribute('fill', '#fbbf24');
+        posText.setAttribute('font-size', '10');
+        posText.setAttribute('font-weight', 'bold');
+        posText.textContent = `[${posDef.id}]`;
+        posMarker.appendChild(posText);
+      }
+
+      const centerX = 200;
+      const centerY = 165;
+      const maxRadius = 90;
+      const selected = items.slice(0, 6);
+      const points = [];
+
+      selected.forEach((item, i) => {
+        const angle = (i * (360 / selected.length) - 90) * (Math.PI / 180);
+        const radius = (item.score / 100) * maxRadius;
+        const x = centerX + radius * Math.cos(angle);
+        const y = centerY + radius * Math.sin(angle);
+
+        points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+
+        const outerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        outerCircle.setAttribute('cx', x);
+        outerCircle.setAttribute('cy', y);
+        outerCircle.setAttribute('r', '5');
+        outerCircle.setAttribute('fill', item.isBasic ? '#10b981' : '#00f0ff');
+        outerCircle.setAttribute('stroke', '#ffffff');
+        outerCircle.setAttribute('stroke-width', '1.5');
+        nodesGroup.appendChild(outerCircle);
+
+        const labelRadius = maxRadius + 22;
+        const lx = centerX + labelRadius * Math.cos(angle);
+        const ly = centerY + labelRadius * Math.sin(angle);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', lx);
+        text.setAttribute('y', ly + 4);
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('fill', item.isBasic ? '#34d399' : '#38bdf8');
+        text.setAttribute('font-size', '10');
+        text.setAttribute('font-weight', '600');
+        text.textContent = `${item.name.split(' (')[0]} ${item.score.toFixed(0)}`;
+        nodesGroup.appendChild(text);
+      });
+
+      poly.setAttribute('points', points.join(' '));
+    }
+
+    function setGraphicView(view) {
+      currentView = view;
+      const radarBtn = document.getElementById('view-radar-btn');
+      const compareBtn = document.getElementById('view-compare-btn');
+      const fieldBtn = document.getElementById('view-field-btn');
+
+      const chartWrapper = document.getElementById('chart-canvas-wrapper');
+      const fieldWrapper = document.getElementById('field-graphic-wrapper');
+
+      [radarBtn, compareBtn, fieldBtn].forEach(btn => {
+        btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white flex items-center gap-1.5';
+      });
+
+      if (view === 'radar') {
+        radarBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 flex items-center gap-1.5 shadow';
+        chartWrapper.classList.remove('hidden');
+        fieldWrapper.classList.add('hidden');
+
+        chartInstance.config.type = 'radar';
+        chartInstance.config.options.scales = {
+          r: {
+            angleLines: { color: 'rgba(255, 255, 255, 0.08)' },
+            grid: { color: 'rgba(255, 255, 255, 0.08)' },
+            pointLabels: {
+              color: '#cbd5e1',
+              font: { family: 'Inter', size: 10, weight: '600' }
+            },
+            ticks: { display: false },
+            suggestedMin: 15,
+            suggestedMax: 100
+          }
+        };
+        chartInstance.update();
+      } else if (view === 'bar') {
+        compareBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 flex items-center gap-1.5 shadow';
+        chartWrapper.classList.remove('hidden');
+        fieldWrapper.classList.add('hidden');
+
+        chartInstance.config.type = 'bar';
+        chartInstance.config.options.scales = {
+          x: {
+            grid: { display: false },
+            ticks: { color: '#cbd5e1', font: { size: 10 } }
+          },
+          y: {
+            min: 0,
+            max: 100,
+            grid: { color: 'rgba(255, 255, 255, 0.08)' },
+            ticks: { color: '#94a3b8' }
+          }
+        };
+        chartInstance.update();
+      } else {
+        fieldBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 flex items-center gap-1.5 shadow';
+        chartWrapper.classList.add('hidden');
+        fieldWrapper.classList.remove('hidden');
+      }
+    }
+
+    function generateScoutingNarrative(overallScore, basicAvg, advAvg, sortedItems) {
+      const pName = document.getElementById('player-name').value || '대상 선수';
+      const pTeam = document.getElementById('player-team').value || '미정';
+      const pCareer = document.getElementById('player-career-span').value || '통산';
+      const posDef = POSITIONS[currentType].find(p => p.id === currentPosition);
+      const posName = posDef ? posDef.name : currentPosition;
+
+      const topItem = sortedItems[0];
+      const secondItem = sortedItems[1];
+      const lowestItem = sortedItems[sortedItems.length - 1];
+
+      const gap = advAvg - basicAvg;
+      let gapComment = '';
+      if (Math.abs(gap) < 3.0) {
+        gapComment = `기본 클래식 성적(${basicAvg.toFixed(1)}점)과 세부 질적 지표(${advAvg.toFixed(1)}점)가 균일하게 일치하여, <strong>운의 개입이 적고 기량의 신뢰도가 매우 탄탄한 선수</strong>입니다.`;
+      } else if (gap > 0) {
+        gapComment = `세부 세이버/스탯캐스트 지표(${advAvg.toFixed(1)}점)가 클래식 성적(${basicAvg.toFixed(1)}점)보다 우수하여, <strong>현재 표면적 수치 대비 실제 타구의 질과 구위 과정이 탁월하여 추가 상승 잠재력이 높은 저평가 우량주</strong>입니다.`;
+      } else {
+        gapComment = `클래식 수치(${basicAvg.toFixed(1)}점)가 세부 질적 지표(${advAvg.toFixed(1)}점)를 상회하고 있어, <strong>수비진의 지원이나 BABIP 행운의 영향이 일부 존재할 수 있음을 감안한 입체적 평가</strong>가 요구됩니다.`;
+      }
+
+      const text = `
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 text-cyan-300 font-semibold border-b border-white/10 pb-1.5">
+            <span>[스카우터 종합 소견]</span>
+            <span class="text-white">${pName} (${posName} · ${pTeam} · ${pCareer})</span>
+          </div>
+          <p>
+            사용자 맞춤 가중치 모델 분석 결과, 종합 스카우팅 평점은 <strong class="text-cyan-400 font-mono text-base font-bold">${overallScore.toFixed(1)}점</strong>을 기록했습니다.
+          </p>
+          <p>
+            ${gapComment}
+          </p>
+          <p>
+            선수의 핵심 경쟁력은 <strong class="text-emerald-300">${topItem.name}</strong>(${topItem.score.toFixed(1)}점) 및 
+            <strong class="text-cyan-300">${secondItem.name}</strong>(${secondItem.score.toFixed(1)}점)에 있으며, 
+            중점 보완 과제는 <span class="text-amber-400 font-semibold">${lowestItem.name}</span>(${lowestItem.score.toFixed(1)}점)으로 확인됩니다.
+          </p>
+        </div>
+      `;
+
+      document.getElementById('scouting-text-card').innerHTML = text;
+    }
+
+    function switchPlayerType(type) {
+      if (currentType === type) return;
+      currentType = type;
+
+      const batterBtn = document.getElementById('mode-batter-btn');
+      const pitcherBtn = document.getElementById('mode-pitcher-btn');
+
+      if (type === 'batter') {
+        batterBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-cyan-500 text-slate-950 shadow-md';
+        pitcherBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-white';
+        document.getElementById('player-name').value = '타자 분석 선수';
+        document.getElementById('player-career-span').value = '통산 540G / 2,150타석';
+        currentPosition = 'CF';
+      } else {
+        pitcherBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-cyan-500 text-slate-950 shadow-md';
+        batterBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-white';
+        document.getElementById('player-name').value = '투수 분석 선수';
+        document.getElementById('player-career-span').value = '통산 120G / 650이닝';
+        currentPosition = 'SP';
+      }
+
+      populatePositionDropdown();
+      setupState();
+      renderInputs();
+      updateProfile();
+      recalculateAll();
+      showToast(`${type === 'batter' ? '타자' : '투수'} 분석 모드로 전환되었습니다.`);
+    }
+
+    function updateProfile() {
+      const name = document.getElementById('player-name').value || '선수';
+      document.getElementById('chart-legend-player').textContent = name;
+      recalculateAll();
+    }
+
+    function resetDataToBlank() {
+      setupState();
+      renderInputs();
+      recalculateAll();
+      showToast('스탯 입력값을 표준 초기치로 재설정했습니다.');
+    }
+
+    function copyScoutingCard() {
+      const name = document.getElementById('player-name').value;
+      const score = document.getElementById('custom-overall-score').textContent;
+      const tier = document.getElementById('player-tier-badge').textContent;
+      const textCard = document.getElementById('scouting-text-card').innerText;
+
+      const summary = `[나만의 야구 스카우팅 리포트]\n선수: ${name}\n종합 점수: ${score}점 (${tier})\n\n${textCard}\n- 나만의 야구 스카우팅 랩`;
+
+      const textArea = document.createElement('textarea');
+      textArea.value = summary;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        showToast('스카우팅 분석 리포트가 복사되었습니다.');
+      } catch (e) {
+        showToast('복사에 실패했습니다.');
+      }
+      document.body.removeChild(textArea);
+    }
+
+    function exportToPDF() {
+      const btn = document.getElementById('pdf-download-btn');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> PDF 생성 중...`;
+      btn.disabled = true;
+
+      const pName = document.getElementById('player-name').value || '야구선수';
+      const element = document.getElementById('scouting-report-capture');
+
+      const opt = {
+        margin: [8, 8, 8, 8],
+        filename: `${pName}_스카우팅리포트_${new Date().toISOString().slice(0, 10)}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true,
+          backgroundColor: '#04070e'
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+      };
+
+      if (window.html2pdf) {
+        window.html2pdf().set(opt).from(element).save().then(() => {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+          showToast('스카우팅 리포트가 PDF로 성공적으로 저장되었습니다!');
+        }).catch(err => {
+          console.error(err);
+          // Fallback to native print if html2pdf meets an error
+          window.print();
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+          showToast('인쇄 모드를 통해 PDF로 저장할 수 있습니다.');
+        });
+      } else {
+        window.print();
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const msgElem = document.getElementById('toast-message');
+      msgElem.textContent = msg;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 2500);
+    }
+
+    window.onload = function() {
+      initApp();
+    };
+  </script>
 </body>
 </html>
