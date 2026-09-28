@@ -111,18 +111,20 @@
     /* Print & PDF styling */
     @media print {
       body {
-        background-color: #ffffff !important;
-        color: #0f172a !important;
+        background-color: #04070e !important;
+        color: #f1f5f9 !important;
       }
       .no-print {
         display: none !important;
       }
-      .print-surface {
-        background: #ffffff !important;
-        border: 1px solid #cbd5e1 !important;
-        color: #0f172a !important;
-        box-shadow: none !important;
-      }
+    }
+
+    /* PDF 전용 캡처 컨테이너 스타일 */
+    #pdf-export-template {
+      width: 1080px;
+      background-color: #070b14;
+      color: #f1f5f9;
+      font-family: 'Inter', sans-serif;
     }
   </style>
 </head>
@@ -153,9 +155,9 @@
         </button>
       </div>
 
-      <!-- PDF Download Button -->
-      <button onclick="exportToPDF()" id="pdf-download-btn" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-900/30 border border-emerald-400/30 transition-all">
-        <i class="fa-solid fa-file-pdf"></i> PDF 저장하기
+      <!-- TXT Download Button -->
+      <button onclick="exportToTXT()" id="txt-download-btn" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-900/30 border border-emerald-400/30 transition-all">
+        <i class="fa-solid fa-file-arrow-down"></i> TXT 저장하기
       </button>
 
       <button onclick="resetDataToBlank()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white glass-input hover:border-cyan-500/40 transition-colors" title="입력 데이터를 표준 초기값으로 복구합니다">
@@ -413,6 +415,11 @@
       </div>
 
     </main>
+  </div>
+
+  <!-- PDF 생성 전용 임시 렌더링 컨테이너 (화면 밖 렌더링) -->
+  <div id="pdf-export-template-container" class="fixed left-[-9999px] top-[-9999px] z-[-50] overflow-hidden pointer-events-none">
+    <!-- Populated dynamically right before PDF generation -->
   </div>
 
   <!-- Toast alert notification -->
@@ -1263,6 +1270,7 @@
       const pCareer = document.getElementById('player-career-span').value || '통산';
       const posDef = POSITIONS[currentType].find(p => p.id === currentPosition);
       const posName = posDef ? posDef.name : currentPosition;
+      const tierBadge = document.getElementById('player-tier-badge').textContent;
 
       const topItem = sortedItems[0];
       const secondItem = sortedItems[1];
@@ -1271,30 +1279,64 @@
       const gap = advAvg - basicAvg;
       let gapComment = '';
       if (Math.abs(gap) < 3.0) {
-        gapComment = `기본 클래식 성적(${basicAvg.toFixed(1)}점)과 세부 질적 지표(${advAvg.toFixed(1)}점)가 균일하게 일치하여, <strong>운의 개입이 적고 기량의 신뢰도가 매우 탄탄한 선수</strong>입니다.`;
+        gapComment = `기본 클래식 성적(<span class="text-emerald-400 font-bold">${basicAvg.toFixed(1)}점</span>)과 세부 질적 지표(<span class="text-cyan-400 font-bold">${advAvg.toFixed(1)}점</span>)가 균일하게 일치하여, <strong>운의 개입이 적고 기량의 신뢰도가 매우 탄탄한 선수</strong>입니다.`;
       } else if (gap > 0) {
-        gapComment = `세부 세이버/스탯캐스트 지표(${advAvg.toFixed(1)}점)가 클래식 성적(${basicAvg.toFixed(1)}점)보다 우수하여, <strong>현재 표면적 수치 대비 실제 타구의 질과 구위 과정이 탁월하여 추가 상승 잠재력이 높은 저평가 우량주</strong>입니다.`;
+        gapComment = `세부 세이버/스탯캐스트 지표(<span class="text-cyan-400 font-bold">${advAvg.toFixed(1)}점</span>)가 클래식 성적(<span class="text-emerald-400 font-bold">${basicAvg.toFixed(1)}점</span>)보다 우수하여, <strong>현재 표면적 수치 대비 실제 타구의 질과 과정이 탁월한 저평가 우량주</strong>입니다.`;
       } else {
-        gapComment = `클래식 수치(${basicAvg.toFixed(1)}점)가 세부 질적 지표(${advAvg.toFixed(1)}점)를 상회하고 있어, <strong>수비진의 지원이나 BABIP 행운의 영향이 일부 존재할 수 있음을 감안한 입체적 평가</strong>가 요구됩니다.`;
+        gapComment = `클래식 수치(<span class="text-emerald-400 font-bold">${basicAvg.toFixed(1)}점</span>)가 세부 질적 지표(<span class="text-cyan-400 font-bold">${advAvg.toFixed(1)}점</span>)를 상회하고 있어, <strong>수비진의 지원이나 BABIP 행운의 영향이 일부 존재할 수 있음을 감안한 입체적 평가</strong>가 요구됩니다.`;
       }
 
+      // 지표별 점수 뱃지 그리드 생성
+      const scoresBadges = sortedItems.map(item => `
+        <div class="px-2.5 py-1.5 rounded-lg bg-slate-900/80 border border-white/5 flex items-center justify-between text-[11px] font-mono">
+          <span class="text-slate-300 font-sans truncate mr-1.5">${item.name.split(' (')[0]}</span>
+          <span class="font-bold ${item.isBasic ? 'text-emerald-400' : 'text-cyan-400'}">${item.score.toFixed(1)}점</span>
+        </div>
+      `).join('');
+
       const text = `
-        <div class="space-y-2">
-          <div class="flex items-center gap-2 text-cyan-300 font-semibold border-b border-white/10 pb-1.5">
-            <span>[스카우터 종합 소견]</span>
-            <span class="text-white">${pName} (${posName} · ${pTeam} · ${pCareer})</span>
+        <div class="space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-cyan-400 font-black text-sm">[종합 소견]</span>
+              <span class="text-white font-bold text-sm">${pName} (${posName} · ${pTeam} · ${pCareer})</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs font-mono">
+              <span class="text-slate-300">종합 스코어: <strong class="text-cyan-300 text-base font-black">${overallScore.toFixed(1)}점</strong></span>
+              <span class="text-slate-400">등급: <strong class="text-amber-300">${tierBadge}</strong></span>
+            </div>
           </div>
-          <p>
-            사용자 맞춤 가중치 모델 분석 결과, 종합 스카우팅 평점은 <strong class="text-cyan-400 font-mono text-base font-bold">${overallScore.toFixed(1)}점</strong>을 기록했습니다.
-          </p>
-          <p>
+
+          <!-- 점수 요약 스탯 바 -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs font-mono">
+            <div class="p-2 rounded-lg bg-slate-900/70 border border-emerald-500/20">
+              <span class="text-[10px] text-slate-400 block mb-0.5">기본 지표 평균</span>
+              <span class="text-emerald-400 font-bold text-sm">${basicAvg.toFixed(1)}점</span>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-900/70 border border-cyan-500/20">
+              <span class="text-[10px] text-slate-400 block mb-0.5">세부 지표 평균</span>
+              <span class="text-cyan-400 font-bold text-sm">${advAvg.toFixed(1)}점</span>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-900/70 border border-amber-500/20">
+              <span class="text-[10px] text-slate-400 block mb-0.5">최대 강점 지표</span>
+              <span class="text-amber-300 font-bold text-sm">${topItem.name.split(' (')[0]} (${topItem.score.toFixed(1)}점)</span>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-900/70 border border-rose-500/20">
+              <span class="text-[10px] text-slate-400 block mb-0.5">보완 필요 지표</span>
+              <span class="text-rose-400 font-bold text-sm">${lowestItem.name.split(' (')[0]} (${lowestItem.score.toFixed(1)}점)</span>
+            </div>
+          </div>
+
+          <p class="leading-relaxed">
             ${gapComment}
           </p>
-          <p>
-            선수의 핵심 경쟁력은 <strong class="text-emerald-300">${topItem.name}</strong>(${topItem.score.toFixed(1)}점) 및 
-            <strong class="text-cyan-300">${secondItem.name}</strong>(${secondItem.score.toFixed(1)}점)에 있으며, 
-            중점 보완 과제는 <span class="text-amber-400 font-semibold">${lowestItem.name}</span>(${lowestItem.score.toFixed(1)}점)으로 확인됩니다.
-          </p>
+
+          <div>
+            <span class="text-[11px] text-slate-400 font-bold block mb-1.5 font-mono">항목별 환산 평가 점수 (100점 만점 기준)</span>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
+              ${scoresBadges}
+            </div>
+          </div>
         </div>
       `;
 
@@ -1364,42 +1406,146 @@
       document.body.removeChild(textArea);
     }
 
-    function exportToPDF() {
-      const btn = document.getElementById('pdf-download-btn');
+    /* 지정한 3개 그래픽(레이더, 랭킹바, 다이아몬드 스킬맵)과 실시간 종합 소견만 점수를 명시하여 .txt 형태로 저장 */
+    function exportToTXT() {
+      const btn = document.getElementById('txt-download-btn');
       const originalText = btn.innerHTML;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> PDF 생성 중...`;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> TXT 생성 중...`;
       btn.disabled = true;
 
-      const pName = document.getElementById('player-name').value || '야구선수';
-      const element = document.getElementById('scouting-report-capture');
+      try {
+        const pName = document.getElementById('player-name').value || '선수';
+        const pTeam = document.getElementById('player-team').value || '소속';
+        const pCareer = document.getElementById('player-career-span').value || '통산';
+        const posDef = POSITIONS[currentType].find(p => p.id === currentPosition) || POSITIONS[currentType][0];
+        const overallScore = document.getElementById('custom-overall-score').textContent.trim();
+        const basicScore = document.getElementById('basic-score-portion').textContent.trim();
+        const advScore = document.getElementById('adv-score-portion').textContent.trim();
+        const tierBadge = document.getElementById('player-tier-badge').textContent.trim();
 
-      const opt = {
-        margin: [8, 8, 8, 8],
-        filename: `${pName}_스카우팅리포트_${new Date().toISOString().slice(0, 10)}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-          scale: 2, 
-          useCORS: true,
-          backgroundColor: '#04070e'
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-      };
+        const basicList = METRICS_CATALOG[currentType].basic;
+        const advList = METRICS_CATALOG[currentType].adv;
 
-      if (window.html2pdf) {
-        window.html2pdf().set(opt).from(element).save().then(() => {
-          btn.innerHTML = originalText;
-          btn.disabled = false;
-          showToast('스카우팅 리포트가 PDF로 성공적으로 저장되었습니다!');
-        }).catch(err => {
-          console.error(err);
-          // Fallback to native print if html2pdf meets an error
-          window.print();
-          btn.innerHTML = originalText;
-          btn.disabled = false;
-          showToast('인쇄 모드를 통해 PDF로 저장할 수 있습니다.');
+        const basicItems = basicList.map(item => ({
+          name: item.name,
+          shortName: item.name.split(' (')[0],
+          raw: activeValues[item.id],
+          unit: item.unit,
+          score: normalizeScore(item, activeValues[item.id]),
+          weight: activeWeights[item.id] || 0
+        }));
+
+        const advItems = advList.map(item => ({
+          name: item.name,
+          shortName: item.name.split(' (')[0],
+          raw: activeValues[item.id],
+          unit: item.unit,
+          score: normalizeScore(item, activeValues[item.id]),
+          weight: activeWeights[item.id] || 0
+        }));
+
+        const allItems = [...basicItems, ...advItems];
+        const sortedAll = [...allItems].sort((a, b) => b.score - a.score);
+
+        // 텍스트 구분선 및 헤더 헬퍼
+        const divider = '='.repeat(70);
+        const subDivider = '-'.repeat(70);
+
+        // 1. 육각형 레이더 텍스트 데이터 (각 지표별 환산 점수 및 리그 평균 대비)
+        let radarSection = `[ 1. 육각형 레이더 분석 (지표별 환산 점수) ]\n${subDivider}\n`;
+        radarSection += `  * 기준점수: 리그 평균 50.0점 기준 (0 ~ 100점 스케일)\n\n`;
+        radarSection += `  항목명                          입력값           환산 점수     가중치\n`;
+        radarSection += `  --------------------------------------------------------------------\n`;
+        allItems.forEach(item => {
+          const rawStr = `${item.raw} ${item.unit}`.padEnd(14, ' ');
+          const scoreBar = `[${'■'.repeat(Math.round(item.score / 10)).padEnd(10, ' ')}]`;
+          radarSection += `  - ${item.name.padEnd(26, ' ')} : ${rawStr} -> ${item.score.toFixed(1).padStart(5, ' ')}점 ${scoreBar} (${item.weight}%)\n`;
         });
-      } else {
-        window.print();
+
+        // 2. 기본 vs 세부 랭킹 바 분석 (기본 지표 랭킹 vs 세부 지표 랭킹 순위 및 점수 비교)
+        const sortedBasic = [...basicItems].sort((a, b) => b.score - a.score);
+        const sortedAdv = [...advItems].sort((a, b) => b.score - a.score);
+
+        let rankBarSection = `\n[ 2. 기본 vs 세부 랭킹 바 분석 ]\n${subDivider}\n`;
+        rankBarSection += `  ■ 기본 데이터(클래식) 평균: ${basicScore}점 | 가중치 합: ${document.getElementById('basic-weight-summary').textContent.replace('비중: ', '')}\n`;
+        sortedBasic.forEach((item, idx) => {
+          const bar = '■'.repeat(Math.round(item.score / 5));
+          rankBarSection += `    ${idx + 1}위. ${item.shortName.padEnd(14, ' ')} : ${item.score.toFixed(1)}점  ${bar}\n`;
+        });
+
+        rankBarSection += `\n  ■ 세부 데이터(세이버·스탯캐스트) 평균: ${advScore}점 | 가중치 합: ${document.getElementById('adv-weight-summary').textContent.replace('비중: ', '')}\n`;
+        sortedAdv.forEach((item, idx) => {
+          const bar = '■'.repeat(Math.round(item.score / 5));
+          rankBarSection += `    ${idx + 1}위. ${item.shortName.padEnd(14, ' ')} : ${item.score.toFixed(1)}점  ${bar}\n`;
+        });
+
+        // 3. 다이아몬드 스킬맵 분석 (필드 포지션 연동 및 주요 6대 축 점수)
+        let diamondSection = `\n[ 3. 다이아몬드 스킬맵 분석 ]\n${subDivider}\n`;
+        diamondSection += `  ■ 필드 포지션: ${posDef.name}\n`;
+        diamondSection += `  ■ 포지션 특성: ${posDef.desc}\n`;
+        diamondSection += `  ■ 다이아몬드 핵심 스킬 6개 축 환산 점수:\n`;
+        const diamondTop6 = allItems.slice(0, 6);
+        diamondTop6.forEach(item => {
+          diamondSection += `    - [${item.shortName}] : ${item.score.toFixed(1)}점 (실제 입력치: ${item.raw}${item.unit})\n`;
+        });
+
+        // 4. 실시간 스카우팅 종합 소견 (점수 및 상세 소견)
+        const gap = parseFloat(advScore) - parseFloat(basicScore);
+        let gapAnalysis = '';
+        if (Math.abs(gap) < 3.0) {
+          gapAnalysis = `기본 클래식 성적(${basicScore}점)과 세부 질적 지표(${advScore}점)가 일치하여, 운의 개입이 적고 본인의 실력 신뢰도가 매우 탄탄한 선수입니다.`;
+        } else if (gap > 0) {
+          gapAnalysis = `세부 세이버/스탯캐스트 지표(${advScore}점)가 클래식 성적(${basicScore}점)보다 높아, 현재 표면적 기록 대비 실제 타구의 질과 기량이 탁월한 저평가 우량주입니다.`;
+        } else {
+          gapAnalysis = `클래식 수치(${basicScore}점)가 세부 질적 지표(${advScore}점)를 상회하고 있어, 수비진의 도움이나 BABIP 등 운의 영향이 일부 존재할 수 있음을 감안한 입체적 평가가 필요합니다.`;
+        }
+
+        let narrativeSection = `\n[ 4. 실시간 스카우팅 종합 소견 ]\n${subDivider}\n`;
+        narrativeSection += `  ■ 나만의 종합 스카우팅 점수 : ${overallScore}점 / 100점 만점\n`;
+        narrativeSection += `  ■ 스카우팅 등급 : ${tierBadge}\n`;
+        narrativeSection += `  ■ 기본 지표 평균 : ${basicScore}점\n`;
+        narrativeSection += `  ■ 세부 지표 평균 : ${advScore}점\n`;
+        narrativeSection += `  ■ 최고 강점 항목 : ${sortedAll[0].shortName} (${sortedAll[0].score.toFixed(1)}점)\n`;
+        narrativeSection += `  ■ 보완 필요 항목 : ${sortedAll[sortedAll.length - 1].shortName} (${sortedAll[sortedAll.length - 1].score.toFixed(1)}점)\n\n`;
+        narrativeSection += `  ■ 정밀 소견 평문:\n`;
+        narrativeSection += `    ${gapAnalysis}\n\n`;
+        narrativeSection += `  ■ 전체 항목별 환산 점수 랭킹:\n`;
+        sortedAll.forEach((item, idx) => {
+          narrativeSection += `    ${String(idx + 1).padStart(2, ' ')}. ${item.shortName.padEnd(16, ' ')} : ${item.score.toFixed(1)}점 (가중치 ${item.weight}%)\n`;
+        });
+
+        // 최종 텍스트 파일 조합 (선택한 4가지 영역만 구성)
+        const finalTxtContent = `${divider}
+ 야구 선수 스카우팅 분석 리포트 (.TXT)
+ 대상 선수: ${pName} | 포지션: ${posDef.name}
+ 소속 및 연도: ${pTeam} | 통산 이력: ${pCareer}
+ 생성일자: ${new Date().toLocaleString('ko-KR')}
+${divider}
+
+${radarSection}
+${rankBarSection}
+${diamondSection}
+${narrativeSection}
+${divider}
+* 본 리포트는 사용자가 직접 설정한 가중치와 기준치로 계산된 분석 데이터입니다.
+${divider}`;
+
+        // Blob 생성 및 .txt 다운로드 트리거
+        const blob = new Blob([finalTxtContent], { type: 'text/plain;charset=utf-8' });
+        const downloadUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `${pName}_스카우팅분석리포트_${new Date().toISOString().slice(0, 10)}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(downloadUrl);
+
+        showToast('지정한 4개 항목(점수 포함)이 담긴 .txt 파일이 저장되었습니다!');
+      } catch (err) {
+        console.error('TXT Export Error:', err);
+        showToast('TXT 파일 생성 중 오류가 발생했습니다.');
+      } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
       }
