@@ -1,1572 +1,443 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>나만의 야구 선수 분석 스튜디오</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- html2pdf.js CDN for PDF export -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
-
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['Orbitron', 'monospace'],
-          },
-          colors: {
-            diamond: {
-              950: '#04070e',
-              900: '#070b14',
-              850: '#0c1322',
-              800: '#121c32',
-              700: '#1e2c4f',
-              600: '#2b3f6e',
-              accent: '#00f0ff',
-              emerald: '#10b981',
-              amber: '#f59e0b',
-              crimson: '#f43f5e'
-            }
-          }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3점 폐합트레버스 계산기</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .input-cell { 
+            width: 100%; 
+            padding: 4px; 
+            border: 1px solid #d1d5db; 
+            border-radius: 4px; 
+            text-align: right;
+            transition: all 0.2s;
         }
-      }
-    }
-  </script>
-
-  <style>
-    body {
-      background-color: #04070e;
-      color: #f1f5f9;
-      font-family: 'Inter', sans-serif;
-      overflow-x: hidden;
-    }
-    
-    .glass-panel {
-      background: rgba(14, 23, 42, 0.78);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
-    }
-
-    .glass-input {
-      background: rgba(9, 14, 26, 0.85);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      transition: all 0.2s ease;
-    }
-    .glass-input:focus {
-      border-color: #00f0ff;
-      box-shadow: 0 0 10px rgba(0, 240, 255, 0.35);
-      outline: none;
-    }
-
-    /* Range slider custom visual */
-    input[type=range] {
-      -webkit-appearance: none;
-      background: #1e2c4f;
-      height: 5px;
-      border-radius: 4px;
-    }
-    input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      height: 15px;
-      width: 15px;
-      border-radius: 50%;
-      background: #00f0ff;
-      cursor: pointer;
-      box-shadow: 0 0 8px rgba(0, 240, 255, 0.7);
-      transition: transform 0.1s;
-    }
-    input[type=range]::-webkit-slider-thumb:hover {
-      transform: scale(1.2);
-    }
-
-    ::-webkit-scrollbar {
-      width: 5px;
-      height: 5px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #070b14;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #1e2c4f;
-      border-radius: 3px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #00f0ff;
-    }
-
-    /* Print & PDF styling */
-    @media print {
-      body {
-        background-color: #04070e !important;
-        color: #f1f5f9 !important;
-      }
-      .no-print {
-        display: none !important;
-      }
-    }
-
-    /* PDF 전용 캡처 컨테이너 스타일 */
-    #pdf-export-template {
-      width: 1080px;
-      background-color: #070b14;
-      color: #f1f5f9;
-      font-family: 'Inter', sans-serif;
-    }
-  </style>
+        .input-cell:focus { 
+            outline: none; 
+            border-color: #3b82f6; 
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); 
+            background-color: #eff6ff;
+        }
+        .calc-cell { 
+            background-color: #f9fafb; 
+            color: #374151; 
+            text-align: right; 
+            padding: 4px 8px;
+        }
+        .angle-input { width: 30%; display: inline-block; }
+    </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-cyan-500 selection:text-black">
+<body class="bg-gray-100 min-h-screen py-8">
 
-  <header class="no-print sticky top-0 z-50 glass-panel border-b border-white/10 px-4 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
-    <div class="flex items-center space-x-3">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 text-white font-black text-xl">
-        <i class="fa-solid fa-baseball-bat-ball"></i>
-      </div>
-      <div>
-        <h1 class="text-base lg:text-lg font-bold tracking-tight text-white flex items-center gap-2">
-          <span>나만의 야구 스카우팅 랩</span>
-          <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-mono">CUSTOM STUDIO</span>
-        </h1>
-        <p class="text-xs text-slate-400">선수 통산 기본·세부 데이터를 직접 입력하고 나만의 가중치 모델로 실시간 분석하세요</p>
-      </div>
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            <!-- Header -->
+            <div class="bg-blue-600 px-6 py-4">
+                <h1 class="text-2xl font-bold text-white">폐합트레버스 측량 계산기</h1>
+                <p class="text-blue-100 text-sm mt-1">기준점 P를 포함한 다각망(P-A-B-C-Q) 실시간 계산</p>
+            </div>
+
+            <div class="p-6">
+                <!-- 설정 영역 (초기 좌표) -->
+                <div class="flex flex-wrap items-center justify-between mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div class="flex items-center space-x-4">
+                        <span class="font-semibold text-gray-700">측점 P 초기 좌표 :</span>
+                        <div>
+                            <label class="text-sm text-gray-500 mr-1">X (합위거)</label>
+                            <input type="number" id="start-x" value="500.000" class="input-cell w-28 font-semibold" oninput="calculate()">
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-500 mr-1">Y (합경거)</label>
+                            <input type="number" id="start-y" value="100.000" class="input-cell w-28 font-semibold" oninput="calculate()">
+                        </div>
+                    </div>
+                    <div class="space-x-2 mt-4 sm:mt-0 flex items-center">
+                        <button onclick="calculateAzimuths()" class="px-4 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded transition font-medium text-sm border border-indigo-200">방위각 자동계산</button>
+                        <button onclick="loadExample()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded transition font-medium text-sm">예제 데이터</button>
+                        <button onclick="clearData()" class="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded transition font-medium text-sm">초기화</button>
+                    </div>
+                </div>
+
+                <!-- 안내 문구 -->
+                <div class="mb-2 text-sm text-gray-600 flex flex-col sm:flex-row justify-between">
+                    <span>※ 측선 <strong>AB</strong>와 <strong>BC</strong>의 거리는 <strong>20</strong>으로 고정되어 있습니다. (측선 AP는 폐합루프 제외)</span>
+                    <span>※ 방위각 산출 기준: <code class="bg-gray-200 px-1 rounded">다음 방위각 = 이전 방위각 + 교각 + 180°</code></span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs sm:text-sm border-collapse border border-gray-300">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="border border-gray-300 p-2 text-center w-12">측점</th>
+                                <th class="border border-gray-300 p-2 text-center w-40">교각 (내각)</th>
+                                <th class="border border-gray-300 p-2 text-center w-12">측선</th>
+                                <th class="border border-gray-300 p-2 text-center w-24">거리 (S)</th>
+                                <th class="border border-gray-300 p-2 text-center w-40">방위각 (도° 분' 초")</th>
+                                <th class="border border-gray-300 p-2 text-center w-20">위거 (ΔX)</th>
+                                <th class="border border-gray-300 p-2 text-center w-20">경거 (ΔY)</th>
+                                <th class="border border-gray-300 p-2 text-center w-20 text-blue-700">보정위거</th>
+                                <th class="border border-gray-300 p-2 text-center w-20 text-blue-700">보정경거</th>
+                                <th class="border border-gray-300 p-2 text-center w-24 text-green-700">합위거 (X)</th>
+                                <th class="border border-gray-300 p-2 text-center w-24 text-green-700">합경거 (Y)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- JS를 통해 동적 렌더링 됨 -->
+                        </tbody>
+                        <tfoot class="bg-gray-100 font-semibold" id="table-foot">
+                            <!-- JS를 통해 총합 및 오차 렌더링 됨 -->
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div class="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-white border-l-4 border-purple-400 shadow-sm p-4 rounded border">
+                        <h3 class="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">교각 총합</h3>
+                        <div class="text-xl font-bold text-gray-800" id="angle-error">0° 0' 0.0"</div>
+                        <div class="text-xs text-gray-500 mt-1">Σ(A, B, C 교각)</div>
+                    </div>
+                    <div class="bg-white border-l-4 border-red-400 shadow-sm p-4 rounded border">
+                        <h3 class="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">위경거 폐합 오차 (E)</h3>
+                        <div class="text-xl font-bold text-gray-800" id="closure-error">0.000</div>
+                        <div class="text-xs text-gray-500 mt-1">E = √(Ex² + Ey²)</div>
+                    </div>
+                    <div class="bg-white border-l-4 border-blue-400 shadow-sm p-4 rounded border">
+                        <h3 class="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">총 거리 (ΣS)</h3>
+                        <div class="text-xl font-bold text-gray-800" id="total-distance">0.000</div>
+                        <div class="text-xs text-gray-500 mt-1">트레버스의 총 둘레</div>
+                    </div>
+                    <div class="bg-white border-l-4 border-green-400 shadow-sm p-4 rounded border">
+                        <h3 class="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">폐합비 (1:N)</h3>
+                        <div class="text-xl font-bold text-gray-800" id="closure-ratio">1 : 0</div>
+                        <div class="text-xs text-gray-500 mt-1">정밀도 지표</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
     </div>
 
-    <!-- Mode Selector: Batter vs Pitcher & PDF Export Action -->
-    <div class="flex items-center flex-wrap gap-2">
-      <div class="inline-flex p-1 bg-diamond-950 rounded-xl border border-white/10">
-        <button id="mode-batter-btn" onclick="switchPlayerType('batter')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-cyan-500 text-slate-950 shadow-md">
-          <i class="fa-solid fa-person-dots-from-line mr-1"></i> 타자 (Batter)
-        </button>
-        <button id="mode-pitcher-btn" onclick="switchPlayerType('pitcher')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-white">
-          <i class="fa-solid fa-baseball mr-1"></i> 투수 (Pitcher)
-        </button>
-      </div>
-
-      <!-- TXT Download Button -->
-      <button onclick="exportToTXT()" id="txt-download-btn" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-900/30 border border-emerald-400/30 transition-all">
-        <i class="fa-solid fa-file-arrow-down"></i> TXT 저장하기
-      </button>
-
-      <button onclick="resetDataToBlank()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white glass-input hover:border-cyan-500/40 transition-colors" title="입력 데이터를 표준 초기값으로 복구합니다">
-        <i class="fa-solid fa-rotate-left text-cyan-400"></i> 초기화
-      </button>
-    </div>
-  </header>
-
-  <!-- Printable & Capturable Report Target Area -->
-  <div id="scouting-report-capture" class="w-full p-2 sm:p-4">
-    <main class="max-w-[1700px] w-full mx-auto grid grid-cols-1 xl:grid-cols-12 gap-5 flex-grow">
-
-      <!-- LEFT COLUMN: Profile & Simultaneous Dual Data Entry (Basic + Advanced) -->
-      <div class="xl:col-span-6 flex flex-col space-y-4">
-        
-        <!-- Card 1: Player Profile Details & Detailed Position Picker -->
-        <div class="glass-panel rounded-2xl p-4 lg:p-5 border border-white/10 relative overflow-hidden">
-          <div class="flex items-center justify-between mb-3">
-            <span class="text-xs font-bold tracking-wider text-cyan-400 uppercase flex items-center gap-1.5">
-              <i class="fa-solid fa-id-card"></i> 대상 선수 프로필 & 포지션 설정
-            </span>
-            <span class="text-[11px] text-slate-400 font-mono">선수 프리셋 없음 · 100% 사용자 지정</span>
-          </div>
-
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div class="col-span-2 sm:col-span-1">
-              <label class="text-[11px] text-slate-400 block mb-1">선수명</label>
-              <input type="text" id="player-name" value="분석 대상 선수" oninput="updateProfile()" class="w-full glass-input rounded-xl px-3 py-1.5 text-xs sm:text-sm font-semibold text-white">
-            </div>
-            <div>
-              <label class="text-[11px] text-slate-400 block mb-1">소속 / 연도</label>
-              <input type="text" id="player-team" value="KBO / 통산" oninput="updateProfile()" class="w-full glass-input rounded-xl px-3 py-1.5 text-xs sm:text-sm text-slate-200">
-            </div>
-            <div>
-              <label class="text-[11px] text-slate-400 block mb-1">통산 경기 / 타석(이닝)</label>
-              <input type="text" id="player-career-span" value="통산 540G / 2,150타석" oninput="updateProfile()" class="w-full glass-input rounded-xl px-3 py-1.5 text-xs sm:text-sm text-slate-200">
-            </div>
-            <div>
-              <label class="text-[11px] text-slate-400 block mb-1">포지션 선택</label>
-              <select id="player-position-select" onchange="handlePositionChange()" class="w-full glass-input rounded-xl px-2.5 py-1.5 text-xs sm:text-sm font-bold text-cyan-300">
-                <!-- Dynamically populated based on Batter / Pitcher -->
-              </select>
-            </div>
-          </div>
-
-          <!-- Position Context Badge & Adjustment Guide -->
-          <div class="mt-3 pt-3 border-t border-white/5 flex flex-wrap items-center justify-between text-[11px] text-slate-400 gap-2">
-            <div class="flex items-center gap-2">
-              <span class="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-mono border border-cyan-500/30" id="pos-tag-display">CF (중견수)</span>
-              <span id="pos-desc-display">외야 센터라인으로 넓은 수비 범위와 빠른 발 필수</span>
-            </div>
-            <span class="text-slate-500 font-mono">가중치 커스텀 연동</span>
-          </div>
-        </div>
-
-        <!-- Card 2: Simultaneous Dual Data Entry (기본 데이터 & 세부 데이터 동시 입력) -->
-        <div class="glass-panel rounded-2xl p-4 lg:p-5 border border-white/10 flex flex-col space-y-4">
-          
-          <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/5">
-            <div class="flex items-center gap-2">
-              <button id="tab-data-btn" onclick="switchDataTab('input')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 flex items-center gap-1.5 shadow">
-                <i class="fa-solid fa-sliders"></i> 스탯 수치 동시 입력
-              </button>
-              <button id="tab-weight-btn" onclick="switchDataTab('weights')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white flex items-center gap-1.5">
-                <i class="fa-solid fa-scale-balanced"></i> 나만의 가중치(%) 설정
-              </button>
-            </div>
-
-            <div class="flex items-center gap-2 no-print">
-              <button onclick="autoNormalizeWeights()" class="text-[11px] px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30 font-medium transition-all">
-                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>가중치 100% 균등분배
-              </button>
-            </div>
-          </div>
-
-          <!-- DUAL SIMULTANEOUS CONTAINER: Basic & Advanced side by side -->
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            
-            <!-- Section A: 기본 데이터 (Traditional Classic Stats) -->
-            <div class="space-y-2.5 flex flex-col">
-              <div class="flex items-center justify-between pb-1 border-b border-emerald-500/20">
-                <div class="flex items-center gap-2">
-                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981]"></span>
-                  <h3 class="text-xs sm:text-sm font-bold text-white">기본 데이터 (클래식)</h3>
-                </div>
-                <span class="text-[11px] text-emerald-400 font-mono font-semibold" id="basic-weight-summary">비중: 50%</span>
-              </div>
-              <div id="basic-metrics-container" class="space-y-2 flex-grow">
-                <!-- Injected via JS -->
-              </div>
-            </div>
-
-            <!-- Section B: 세부 데이터 (Advanced / Statcast Stats) -->
-            <div class="space-y-2.5 flex flex-col">
-              <div class="flex items-center justify-between pb-1 border-b border-cyan-500/20">
-                <div class="flex items-center gap-2">
-                  <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff]"></span>
-                  <h3 class="text-xs sm:text-sm font-bold text-white">세부 데이터 (세이버·스탯캐스트)</h3>
-                </div>
-                <span class="text-[11px] text-cyan-400 font-mono font-semibold" id="adv-weight-summary">비중: 50%</span>
-              </div>
-              <div id="adv-metrics-container" class="space-y-2 flex-grow">
-                <!-- Injected via JS -->
-              </div>
-            </div>
-
-          </div>
-
-          <!-- Total Weight Status Checker -->
-          <div class="p-2.5 rounded-xl bg-diamond-950 border border-white/5 flex items-center justify-between text-xs font-mono">
-            <span class="text-slate-400 flex items-center gap-1.5">
-              <i class="fa-solid fa-circle-check text-slate-500" id="weight-status-icon"></i>
-              가중치 총합계:
-            </span>
-            <span id="weight-total-display" class="font-bold text-emerald-400 text-sm">100% (적정 100%)</span>
-          </div>
-
-        </div>
-
-      </div>
-
-      <!-- RIGHT COLUMN: Dynamic Graphic Studio & Visual Breakdown -->
-      <div class="xl:col-span-6 flex flex-col space-y-4">
-
-        <!-- TOP METRIC CARDS: Overall Custom Grade & Dual Breakdown -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          
-          <!-- Score Card -->
-          <div class="sm:col-span-2 glass-panel rounded-2xl p-4 lg:p-5 border border-cyan-500/30 bg-gradient-to-br from-diamond-850 to-diamond-900 flex flex-col justify-between relative overflow-hidden">
-            <div class="flex items-center justify-between">
-              <div>
-                <span class="text-xs font-bold text-cyan-400 uppercase tracking-wider">나만의 종합 스카우팅 지수</span>
-                <p class="text-[11px] text-slate-400">입력한 통산 기본·세부 스탯과 가중치로 환산</p>
-              </div>
-              <div id="player-tier-badge" class="font-mono text-xs px-2.5 py-1 rounded-full font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/40">
-                GRADE A+
-              </div>
-            </div>
-
-            <div class="my-2.5 flex items-baseline gap-3">
-              <span id="custom-overall-score" class="text-4xl lg:text-5xl font-black font-mono tracking-tight text-white drop-shadow-[0_0_20px_rgba(0,240,255,0.4)]">
-                88.5
-              </span>
-              <span class="text-xs font-bold text-slate-400 font-mono">/ 100 PTS</span>
-            </div>
-
-            <!-- Dual Component Balance Progress Bar -->
-            <div>
-              <div class="flex justify-between text-[11px] font-mono text-slate-300 mb-1">
-                <span class="text-emerald-400">기본 지표: <span id="basic-score-portion">00.0</span>점</span>
-                <span class="text-cyan-400">세부 지표: <span id="adv-score-portion">00.0</span>점</span>
-              </div>
-              <div class="w-full bg-slate-950 rounded-full h-2.5 overflow-hidden flex border border-white/5">
-                <div id="bar-portion-basic" class="bg-emerald-400 h-full transition-all duration-200" style="width: 50%;"></div>
-                <div id="bar-portion-adv" class="bg-cyan-400 h-full transition-all duration-200" style="width: 50%;"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Strongest Weapon Card -->
-          <div class="glass-panel rounded-2xl p-4 lg:p-5 border border-white/10 flex flex-col justify-between">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                <i class="fa-solid fa-crown text-amber-400"></i> 최대 강점 지표
-              </span>
-              <span class="text-[10px] text-slate-400 font-mono">PEAK</span>
-            </div>
-            <div class="my-2">
-              <p id="top-skill-title" class="text-sm lg:text-base font-bold text-white truncate">-</p>
-              <p id="top-skill-desc" class="text-[11px] text-slate-400 mt-0.5 line-clamp-2">-</p>
-            </div>
-            <div class="text-xs text-amber-300 font-mono font-bold flex items-center gap-1" id="top-skill-rating">
-              환산: 00.0 / 100
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Visual Display Card: Interactive Dynamic Graphics -->
-        <div class="glass-panel rounded-2xl p-4 lg:p-5 border border-white/10 flex flex-col space-y-3">
-          <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-white/5">
-            <div class="flex items-center space-x-2 no-print">
-              <button id="view-radar-btn" onclick="setGraphicView('radar')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 flex items-center gap-1.5 shadow">
-                <i class="fa-solid fa-chart-pie"></i> 통합 육각형 레이더
-              </button>
-              <button id="view-compare-btn" onclick="setGraphicView('bar')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white flex items-center gap-1.5">
-                <i class="fa-solid fa-chart-simple"></i> 기본 vs 세부 랭킹 바
-              </button>
-              <button id="view-field-btn" onclick="setGraphicView('field')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white flex items-center gap-1.5">
-                <i class="fa-solid fa-diamond"></i> 다이아몬드 스킬맵
-              </button>
-            </div>
-
-            <div class="text-[11px] text-slate-400 flex items-center gap-2 font-mono">
-              <span class="inline-block w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff]"></span>
-              <span id="chart-legend-player">분석 대상 선수</span>
-              <span class="inline-block w-2 h-2 rounded-full bg-slate-600 ml-1"></span>
-              <span>리그 평균 기준(50)</span>
-            </div>
-          </div>
-
-          <!-- Graphic Container 1: Chart.js Canvas -->
-          <div id="chart-canvas-wrapper" class="relative w-full h-[320px] flex items-center justify-center">
-            <canvas id="scoutingChart"></canvas>
-          </div>
-
-          <!-- Graphic Container 2: Dynamic SVG Baseball Diamond Field Skill Map -->
-          <div id="field-graphic-wrapper" class="hidden relative w-full h-[320px] bg-diamond-950/70 rounded-xl border border-white/5 flex items-center justify-center p-2 overflow-hidden">
-            <svg id="baseball-diamond-svg" class="w-full h-full max-w-[440px]" viewBox="0 0 400 320">
-              <!-- Outfield Grass Arc -->
-              <path d="M 20 230 A 210 210 0 0 1 380 230 L 200 290 Z" fill="#0c201d" stroke="#143b35" stroke-width="1.5" />
-              <!-- Infield Dirt Diamond -->
-              <polygon points="200,80 280,160 200,240 120,160" fill="#201c18" stroke="#3b322a" stroke-width="1.5" />
-              <!-- Infield Lines -->
-              <line x1="200" y1="240" x2="360" y2="80" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="3,3" />
-              <line x1="200" y1="240" x2="40" y2="80" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="3,3" />
-              <!-- Bases -->
-              <polygon points="200,240 195,245 200,250 205,245" fill="#f8fafc" /> <!-- Home -->
-              <polygon points="280,160 285,160 280,155 275,160" fill="#f8fafc" /> <!-- 1B -->
-              <polygon points="200,80 205,80 200,75 195,80" fill="#f8fafc" /> <!-- 2B -->
-              <polygon points="120,160 125,160 120,155 115,160" fill="#f8fafc" /> <!-- 3B -->
-              <!-- Pitcher Mound -->
-              <circle cx="200" cy="165" r="7" fill="#475569" stroke="#94a3b8" stroke-width="1" />
-
-              <!-- Dynamic Skill Radar Overlay on Diamond -->
-              <polygon id="svg-skill-polygon" points="200,165 200,165 200,165 200,165 200,165 200,165" fill="rgba(0, 240, 255, 0.25)" stroke="#00f0ff" stroke-width="2" />
-              
-              <!-- Graphic Nodes with Dynamic Glows -->
-              <g id="svg-nodes-group"></g>
-
-              <!-- Position Target Marker -->
-              <g id="svg-position-marker"></g>
-            </svg>
-          </div>
-        </div>
-
-        <!-- Card 4: Automated Scouting Report -->
-        <div class="glass-panel rounded-2xl p-4 lg:p-5 border border-white/10 flex flex-col space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
-              <i class="fa-solid fa-file-waveform text-cyan-400"></i>
-              <span>실시간 스카우팅 종합 소견 (Custom Scouting Report)</span>
-            </h3>
-            <button onclick="copyScoutingCard()" class="no-print text-xs px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 transition-all flex items-center gap-1.5">
-              <i class="fa-solid fa-copy"></i>
-              <span id="copy-btn-text">텍스트 복사</span>
-            </button>
-          </div>
-
-          <div id="scouting-text-card" class="bg-diamond-950/90 rounded-xl p-4 border border-white/5 text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
-            <!-- Populated in JS -->
-          </div>
-        </div>
-
-      </div>
-
-    </main>
-  </div>
-
-  <!-- PDF 생성 전용 임시 렌더링 컨테이너 (화면 밖 렌더링) -->
-  <div id="pdf-export-template-container" class="fixed left-[-9999px] top-[-9999px] z-[-50] overflow-hidden pointer-events-none">
-    <!-- Populated dynamically right before PDF generation -->
-  </div>
-
-  <!-- Toast alert notification -->
-  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 glass-panel border border-cyan-500/40 bg-diamond-900 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs sm:text-sm text-white pointer-events-none">
-    <i class="fa-solid fa-circle-check text-cyan-400 text-base"></i>
-    <span id="toast-message">알림</span>
-  </div>
-
-  <script>
-    let currentType = 'batter'; // 'batter' | 'pitcher'
-    let currentPosition = 'CF';
-    let currentView = 'radar'; // 'radar' | 'bar' | 'field'
-    let activeTab = 'input'; // 'input' | 'weights'
-    let chartInstance = null;
-
-    // Detailed position taxonomy for Batter and Pitcher
-    const POSITIONS = {
-      batter: [
-        { id: 'C', name: '포수 (C)', desc: '포수 수비력 및 투수 리드 최우선 / 타격 보정치 높음', fieldX: 200, fieldY: 260 },
-        { id: '1B', name: '1루수 (1B)', desc: '코너 내야수로 강력한 순수 파워 및 타점 생산성 필수', fieldX: 280, fieldY: 160 },
-        { id: '2B', name: '2루수 (2B)', desc: '키스톤 콤비로 정밀한 콘택트와 기동력, 수비 범위 요구', fieldX: 240, fieldY: 110 },
-        { id: '3B', name: '3루수 (3B)', desc: '핫코너로 강한 송구 능력과 중장거리 장타력 필요', fieldX: 120, fieldY: 160 },
-        { id: 'SS', name: '유격수 (SS)', desc: '내야 사령탑으로 가장 높은 수비 기여도와 민첩성 요구', fieldX: 160, fieldY: 110 },
-        { id: 'LF', name: '좌익수 (LF)', desc: '코너 외야수로 안정적인 타격 생산성과 장타력 우선', fieldX: 90, fieldY: 90 },
-        { id: 'CF', name: '중견수 (CF)', desc: '외야 센터라인으로 넓은 수비 범위와 빠른 발 필수', fieldX: 200, fieldY: 60 },
-        { id: 'RF', name: '우익수 (RF)', desc: '깊은 송구 강견과 외야 장타 생산력을 겸비한 포지션', fieldX: 310, fieldY: 90 },
-        { id: 'DH', name: '지명타자 (DH)', desc: '수비 부담 없이 오직 최상급의 순수 타격 생산성 증명 필요', fieldX: 200, fieldY: 210 }
-      ],
-      pitcher: [
-        { id: 'SP', name: '선발 투수 (SP)', desc: '긴 이닝을 책임지는 스테미너, 다양한 구종과 경기 운영력', fieldX: 200, fieldY: 165 },
-        { id: 'RP_SWING', name: '롱릴리프 / 스윙맨 (Swing RP)', desc: '조기 강판 대비 멀티 이닝 소화 및 위기 관리 능력', fieldX: 160, fieldY: 190 },
-        { id: 'RP_HOLD', name: '셋업맨 / 필승조 (Setup RP)', desc: '경기 후반 리드를 지키는 압도적 탈삼진 구위와 헛스윙 유도', fieldX: 240, fieldY: 190 },
-        { id: 'CP', name: '마무리 투수 (Closer CP)', desc: '9회 1이닝을 닫는 최고 구속과 강력한 실점 억제력', fieldX: 200, fieldY: 140 }
-      ]
-    };
-
-    // Full Metrics Catalog: Divided into Basic (Classic) & Advanced (Sabermetrics/Statcast)
-    const METRICS_CATALOG = {
-      batter: {
-        basic: [
-          {
-            id: 'avg',
-            name: '타율 (AVG)',
-            desc: '통산 안타 / 타수',
-            min: 0.180,
-            max: 0.380,
-            step: 0.005,
-            unit: '',
-            defaultVal: 0.275,
-            defaultWeight: 10,
-            reverse: false
-          },
-          {
-            id: 'obp',
-            name: '출루율 (OBP)',
-            desc: '출루 성공 확률',
-            min: 0.260,
-            max: 0.460,
-            step: 0.005,
-            unit: '',
-            defaultVal: 0.350,
-            defaultWeight: 15,
-            reverse: false
-          },
-          {
-            id: 'slg',
-            name: '장타율 (SLG)',
-            desc: '루타수 / 타수',
-            min: 0.300,
-            max: 0.650,
-            step: 0.005,
-            unit: '',
-            defaultVal: 0.450,
-            defaultWeight: 10,
-            reverse: false
-          },
-          {
-            id: 'hr',
-            name: '연평균 홈런 (HR)',
-            desc: '144경기 환산 홈런',
-            min: 0,
-            max: 50,
-            step: 1,
-            unit: '개',
-            defaultVal: 20,
-            defaultWeight: 10,
-            reverse: false
-          },
-          {
-            id: 'sb',
-            name: '연평균 도루 (SB)',
-            desc: '144경기 환산 도루',
-            min: 0,
-            max: 50,
-            step: 1,
-            unit: '개',
-            defaultVal: 10,
-            defaultWeight: 5,
-            reverse: false
-          }
-        ],
-        adv: [
-          {
-            id: 'wrc_plus',
-            name: '조정 득점창출력 (wRC+)',
-            desc: '파크팩터/시대 보정 (리그평균=100)',
-            min: 60,
-            max: 190,
-            step: 1,
-            unit: '',
-            defaultVal: 125,
-            defaultWeight: 15,
-            reverse: false
-          },
-          {
-            id: 'iso',
-            name: '순수 장타율 (ISO)',
-            desc: 'SLG - AVG (순수 엑스트라 베이스)',
-            min: 0.080,
-            max: 0.330,
-            step: 0.005,
-            unit: '',
-            defaultVal: 0.175,
-            defaultWeight: 10,
-            reverse: false
-          },
-          {
-            id: 'hard_hit',
-            name: '하드힛 비율 (HardHit%)',
-            desc: '95mph 이상 강한 타구 속도 비율',
-            min: 25.0,
-            max: 60.0,
-            step: 0.5,
-            unit: '%',
-            defaultVal: 40.0,
-            defaultWeight: 10,
-            reverse: false
-          },
-          {
-            id: 'bb_rate',
-            name: '볼넷 비율 (BB%)',
-            desc: '선구안과 타석 인내심',
-            min: 4.0,
-            max: 20.0,
-            step: 0.2,
-            unit: '%',
-            defaultVal: 9.5,
-            defaultWeight: 10,
-            reverse: false
-          },
-          {
-            id: 'k_rate',
-            name: '삼진 억제율 (K% 역산)',
-            desc: '삼진 회피 및 콘택트 지속성',
-            min: 8.0,
-            max: 32.0,
-            step: 0.5,
-            unit: '%',
-            defaultVal: 18.0,
-            defaultWeight: 5,
-            reverse: true
-          }
-        ]
-      },
-      pitcher: {
-        basic: [
-          {
-            id: 'era',
-            name: '평균자책점 (ERA)',
-            desc: '9이닝당 허용 자책점',
-            min: 1.80,
-            max: 6.00,
-            step: 0.05,
-            unit: '',
-            defaultVal: 3.60,
-            defaultWeight: 15,
-            reverse: true
-          },
-          {
-            id: 'whip',
-            name: '이닝당 출루허용률 (WHIP)',
-            desc: '(피안타+볼넷) / 투구 이닝',
-            min: 0.90,
-            max: 1.65,
-            step: 0.01,
-            unit: '',
-            defaultVal: 1.25,
-            defaultWeight: 15,
-            reverse: true
-          },
-          {
-            id: 'ip',
-            name: '연평균 소화 이닝 (IP)',
-            desc: '선발/불펜 내구성 및 워크로드',
-            min: 40,
-            max: 210,
-            step: 2,
-            unit: '이닝',
-            defaultVal: 140,
-            defaultWeight: 10,
-            reverse: false
-          },
-          {
-            id: 'baa',
-            name: '피안타율 (BAA)',
-            desc: '상대 타자 피안타 억제율',
-            min: 0.180,
-            max: 0.320,
-            step: 0.005,
-            unit: '',
-            defaultVal: 0.250,
-            defaultWeight: 10,
-            reverse: true
-          }
-        ],
-        adv: [
-          {
-            id: 'fip',
-            name: '수비무관 자책점 (FIP)',
-            desc: '수비 배제 홈런·볼넷·삼진 독립 평가',
-            min: 2.20,
-            max: 5.50,
-            step: 0.05,
-            unit: '',
-            defaultVal: 3.50,
-            defaultWeight: 15,
-            reverse: true
-          },
-          {
-            id: 'k_rate',
-            name: '탈삼진율 (K%)',
-            desc: '타자를 압도하는 순수 구위 및 스터프',
-            min: 14.0,
-            max: 38.0,
-            step: 0.5,
-            unit: '%',
-            defaultVal: 24.0,
-            defaultWeight: 10,
-            reverse: false
-          },
-          {
-            id: 'bb_rate',
-            name: '볼넷 억제율 (BB% 역산)',
-            desc: '공짜 출루를 억제하는 존 제구력',
-            min: 3.5,
-            max: 13.0,
-            step: 0.2,
-            unit: '%',
-            defaultVal: 7.2,
-            defaultWeight: 10,
-            reverse: true
-          },
-          {
-            id: 'swstr_rate',
-            name: '헛스윙 유도율 (SwStr%)',
-            desc: '타자 배트 헛스윙 유도 비율',
-            min: 7.0,
-            max: 18.0,
-            step: 0.2,
-            unit: '%',
-            defaultVal: 11.5,
-            defaultWeight: 5,
-            reverse: false
-          },
-          {
-            id: 'hard_hit_allow',
-            name: '정타 억제율 (HardHit% 역산)',
-            desc: '강한 배럴 타구 허용 억제력',
-            min: 28.0,
-            max: 48.0,
-            step: 0.5,
-            unit: '%',
-            defaultVal: 35.0,
-            defaultWeight: 5,
-            reverse: true
-          },
-          {
-            id: 'gb_rate',
-            name: '땅볼 유도율 (GB%)',
-            desc: '장타/홈런을 억제하는 투구 궤적',
-            min: 32.0,
-            max: 60.0,
-            step: 0.5,
-            unit: '%',
-            defaultVal: 45.0,
-            defaultWeight: 5,
-            reverse: false
-          }
-        ]
-      }
-    };
-
-    // User values & custom weights storage
-    let activeValues = {};
-    let activeWeights = {};
-
-    function initApp() {
-      populatePositionDropdown();
-      setupState();
-      renderInputs();
-      initChart();
-      recalculateAll();
-    }
-
-    function populatePositionDropdown() {
-      const select = document.getElementById('player-position-select');
-      select.innerHTML = '';
-      const list = POSITIONS[currentType];
-      
-      list.forEach(pos => {
-        const opt = document.createElement('option');
-        opt.value = pos.id;
-        opt.textContent = pos.name;
-        if (pos.id === currentPosition) opt.selected = true;
-        select.appendChild(opt);
-      });
-
-      if (!list.find(p => p.id === currentPosition)) {
-        currentPosition = list[0].id;
-        select.value = currentPosition;
-      }
-      updatePositionInfo();
-    }
-
-    function handlePositionChange() {
-      const select = document.getElementById('player-position-select');
-      currentPosition = select.value;
-      updatePositionInfo();
-      recalculateAll();
-    }
-
-    function updatePositionInfo() {
-      const list = POSITIONS[currentType];
-      const match = list.find(p => p.id === currentPosition) || list[0];
-      document.getElementById('pos-tag-display').textContent = match.name;
-      document.getElementById('pos-desc-display').textContent = match.desc;
-    }
-
-    function setupState() {
-      const basicList = METRICS_CATALOG[currentType].basic;
-      const advList = METRICS_CATALOG[currentType].adv;
-
-      activeValues = {};
-      activeWeights = {};
-
-      [...basicList, ...advList].forEach(item => {
-        activeValues[item.id] = item.defaultVal;
-        activeWeights[item.id] = item.defaultWeight;
-      });
-    }
-
-    function renderInputs() {
-      const basicContainer = document.getElementById('basic-metrics-container');
-      const advContainer = document.getElementById('adv-metrics-container');
-
-      basicContainer.innerHTML = '';
-      advContainer.innerHTML = '';
-
-      const basicList = METRICS_CATALOG[currentType].basic;
-      const advList = METRICS_CATALOG[currentType].adv;
-
-      renderMetricGroup(basicList, basicContainer, 'basic');
-      renderMetricGroup(advList, advContainer, 'adv');
-      updateWeightTotalDisplay();
-    }
-
-    function renderMetricGroup(items, container, groupKey) {
-      items.forEach(m => {
-        const row = document.createElement('div');
-        row.className = 'glass-panel rounded-xl p-2.5 border border-white/5 hover:border-cyan-500/30 transition-all';
-        
-        row.innerHTML = `
-          <div class="flex justify-between items-center mb-1">
-            <div class="pr-2 truncate">
-              <span class="text-xs font-semibold text-slate-200 block truncate" title="${m.name}">${m.name}</span>
-              <span class="text-[10px] text-slate-400 block truncate">${m.desc}</span>
-            </div>
-            
-            <div class="flex items-center space-x-1.5 flex-shrink-0">
-              ${activeTab === 'input' ? `
-                <input type="number" 
-                  id="num-${m.id}" 
-                  value="${activeValues[m.id]}" 
-                  min="${m.min}" 
-                  max="${m.max}" 
-                  step="${m.step}" 
-                  oninput="handleNumericChange('${m.id}', this.value)"
-                  class="w-20 text-right glass-input rounded-lg px-2 py-1 text-xs font-mono font-bold text-cyan-300">
-                <span class="text-[10px] text-slate-400 font-mono w-5">${m.unit}</span>
-              ` : `
-                <div class="flex items-center gap-1">
-                  <span class="text-[10px] text-slate-400">가중치</span>
-                  <input type="number" 
-                    id="weight-num-${m.id}" 
-                    value="${activeWeights[m.id]}" 
-                    min="0" 
-                    max="60" 
-                    step="1" 
-                    oninput="handleWeightChange('${m.id}', this.value)"
-                    class="w-14 text-right glass-input rounded-lg px-1.5 py-1 text-xs font-mono font-bold text-amber-300">
-                  <span class="text-[10px] text-amber-300 font-mono">%</span>
-                </div>
-              `}
-            </div>
-          </div>
-
-          <div class="flex items-center gap-2 mt-1.5">
-            ${activeTab === 'input' ? `
-              <span class="text-[9px] text-slate-500 font-mono">${m.min}</span>
-              <input type="range" 
-                id="slider-${m.id}" 
-                min="${m.min}" 
-                max="${m.max}" 
-                step="${m.step}" 
-                value="${activeValues[m.id]}" 
-                oninput="handleSliderChange('${m.id}', this.value)"
-                class="w-full">
-              <span class="text-[9px] text-slate-500 font-mono">${m.max}</span>
-            ` : `
-              <span class="text-[9px] text-slate-500 font-mono">0%</span>
-              <input type="range" 
-                id="weight-slider-${m.id}" 
-                min="0" 
-                max="50" 
-                step="1" 
-                value="${activeWeights[m.id]}" 
-                oninput="handleWeightChange('${m.id}', this.value)"
-                class="w-full accent-amber-400">
-              <span class="text-[9px] text-slate-500 font-mono">50%</span>
-            `}
-          </div>
-        `;
-
-        container.appendChild(row);
-      });
-    }
-
-    function handleNumericChange(id, val) {
-      const num = parseFloat(val);
-      if (!isNaN(num)) {
-        activeValues[id] = num;
-        const slider = document.getElementById(`slider-${id}`);
-        if (slider) slider.value = num;
-        recalculateAll();
-      }
-    }
-
-    function handleSliderChange(id, val) {
-      const num = parseFloat(val);
-      activeValues[id] = num;
-      const numInput = document.getElementById(`num-${id}`);
-      if (numInput) numInput.value = num;
-      recalculateAll();
-    }
-
-    function handleWeightChange(id, val) {
-      const num = Math.max(0, parseInt(val, 10) || 0);
-      activeWeights[id] = num;
-      
-      const wSlider = document.getElementById(`weight-slider-${id}`);
-      const wNum = document.getElementById(`weight-num-${id}`);
-      if (wSlider) wSlider.value = num;
-      if (wNum) wNum.value = num;
-
-      updateWeightTotalDisplay();
-      recalculateAll();
-    }
-
-    function switchDataTab(tab) {
-      activeTab = tab;
-      const dataBtn = document.getElementById('tab-data-btn');
-      const weightBtn = document.getElementById('tab-weight-btn');
-
-      if (tab === 'input') {
-        dataBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 flex items-center gap-1.5 shadow';
-        weightBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white flex items-center gap-1.5';
-      } else {
-        weightBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-400 text-slate-950 flex items-center gap-1.5 shadow';
-        dataBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white flex items-center gap-1.5';
-      }
-
-      renderInputs();
-    }
-
-    function updateWeightTotalDisplay() {
-      const basicList = METRICS_CATALOG[currentType].basic;
-      const advList = METRICS_CATALOG[currentType].adv;
-
-      let basicSum = 0;
-      let advSum = 0;
-
-      basicList.forEach(m => basicSum += (activeWeights[m.id] || 0));
-      advList.forEach(m => advSum += (activeWeights[m.id] || 0));
-
-      const total = basicSum + advSum;
-
-      document.getElementById('basic-weight-summary').textContent = `비중: ${basicSum}%`;
-      document.getElementById('adv-weight-summary').textContent = `비중: ${advSum}%`;
-
-      const display = document.getElementById('weight-total-display');
-      const icon = document.getElementById('weight-status-icon');
-
-      display.textContent = `${total}% ${total === 100 ? '(적정 100%)' : '(합계 불일치)'}`;
-
-      if (total === 100) {
-        display.className = 'font-bold text-emerald-400 text-sm font-mono';
-        icon.className = 'fa-solid fa-circle-check text-emerald-400';
-      } else if (total > 100) {
-        display.className = 'font-bold text-rose-400 text-sm font-mono';
-        icon.className = 'fa-solid fa-circle-exclamation text-rose-400';
-      } else {
-        display.className = 'font-bold text-amber-400 text-sm font-mono';
-        icon.className = 'fa-solid fa-circle-exclamation text-amber-400';
-      }
-    }
-
-    function autoNormalizeWeights() {
-      const allMetrics = [...METRICS_CATALOG[currentType].basic, ...METRICS_CATALOG[currentType].adv];
-      const count = allMetrics.length;
-      const base = Math.floor(100 / count);
-      let remainder = 100 - (base * count);
-
-      allMetrics.forEach((m, idx) => {
-        const val = base + (idx < remainder ? 1 : 0);
-        activeWeights[m.id] = val;
-      });
-
-      renderInputs();
-      recalculateAll();
-      showToast('기본 및 세부 지표 가중치를 100% 균등 분배했습니다.');
-    }
-
-    function normalizeScore(metricDef, value) {
-      let score;
-      if (metricDef.reverse) {
-        score = ((metricDef.max - value) / (metricDef.max - metricDef.min)) * 100;
-      } else {
-        score = ((value - metricDef.min) / (metricDef.max - metricDef.min)) * 100;
-      }
-      return Math.min(100, Math.max(0, score));
-    }
-
-    function recalculateAll() {
-      const basicList = METRICS_CATALOG[currentType].basic;
-      const advList = METRICS_CATALOG[currentType].adv;
-      const allItems = [...basicList, ...advList];
-
-      let totalWeightedScore = 0;
-      let totalWeight = 0;
-
-      let basicWeightedScore = 0;
-      let basicWeightSum = 0;
-
-      let advWeightedScore = 0;
-      let advWeightSum = 0;
-
-      const scoredItems = [];
-
-      allItems.forEach(item => {
-        const raw = activeValues[item.id];
-        const weight = activeWeights[item.id] || 0;
-        const score = normalizeScore(item, raw);
-        const isBasic = basicList.some(b => b.id === item.id);
-
-        scoredItems.push({
-          id: item.id,
-          name: item.name,
-          desc: item.desc,
-          score: score,
-          weight: weight,
-          isBasic: isBasic,
-          rawVal: raw,
-          unit: item.unit
-        });
-
-        totalWeightedScore += score * weight;
-        totalWeight += weight;
-
-        if (isBasic) {
-          basicWeightedScore += score * weight;
-          basicWeightSum += weight;
-        } else {
-          advWeightedScore += score * weight;
-          advWeightSum += weight;
-        }
-      });
-
-      const finalScore = totalWeight > 0 ? (totalWeightedScore / totalWeight) : 50.0;
-      const basicAvg = basicWeightSum > 0 ? (basicWeightedScore / basicWeightSum) : 50.0;
-      const advAvg = advWeightSum > 0 ? (advWeightedScore / advWeightSum) : 50.0;
-
-      document.getElementById('custom-overall-score').textContent = finalScore.toFixed(1);
-      document.getElementById('basic-score-portion').textContent = basicAvg.toFixed(1);
-      document.getElementById('adv-score-portion').textContent = advAvg.toFixed(1);
-
-      const basicWidth = (basicWeightSum / (totalWeight || 1)) * 100;
-      const advWidth = 100 - basicWidth;
-      document.getElementById('bar-portion-basic').style.width = `${basicWidth}%`;
-      document.getElementById('bar-portion-adv').style.width = `${advWidth}%`;
-
-      updateTierBadge(finalScore);
-
-      const sorted = [...scoredItems].sort((a, b) => b.score - a.score);
-      const topSkill = sorted[0];
-      document.getElementById('top-skill-title').textContent = topSkill.name.split(' (')[0];
-      document.getElementById('top-skill-desc').textContent = topSkill.desc;
-      document.getElementById('top-skill-rating').textContent = `환산 점수: ${topSkill.score.toFixed(1)} / 100`;
-
-      updateGraphicViews(scoredItems);
-      generateScoutingNarrative(finalScore, basicAvg, advAvg, sorted);
-    }
-
-    function updateTierBadge(score) {
-      let tier = 'GRADE C (보완 필요)';
-      let style = 'text-rose-300 bg-rose-950/80 border-rose-400';
-
-      if (score >= 92) {
-        tier = 'GRADE S+ (MVP/리그 최상위)';
-        style = 'text-cyan-300 bg-cyan-950/90 border-cyan-400 shadow-[0_0_15px_rgba(0,240,255,0.4)]';
-      } else if (score >= 84) {
-        tier = 'GRADE S (리그 올스타급)';
-        style = 'text-blue-300 bg-blue-950/80 border-blue-400';
-      } else if (score >= 74) {
-        tier = 'GRADE A+ (확고한 주전급)';
-        style = 'text-emerald-300 bg-emerald-950/80 border-emerald-400';
-      } else if (score >= 64) {
-        tier = 'GRADE B (견고한 로테이션/플래툰)';
-        style = 'text-amber-300 bg-amber-950/80 border-amber-400';
-      }
-
-      const badge = document.getElementById('player-tier-badge');
-      badge.textContent = tier;
-      badge.className = `font-mono text-xs px-2.5 py-1 rounded-full font-bold border transition-all ${style}`;
-    }
-
-    function initChart() {
-      const ctx = document.getElementById('scoutingChart').getContext('2d');
-      
-      chartInstance = new Chart(ctx, {
-        type: 'radar',
-        data: {
-          labels: [],
-          datasets: [
-            {
-              label: '선수 환산 지수',
-              data: [],
-              backgroundColor: 'rgba(0, 240, 255, 0.25)',
-              borderColor: '#00f0ff',
-              borderWidth: 2,
-              pointBackgroundColor: '#00f0ff',
-              pointBorderColor: '#ffffff',
-              pointRadius: 4,
-              pointHoverRadius: 6
-            },
-            {
-              label: '리그 평균 기준 (50점)',
-              data: [],
-              borderColor: 'rgba(255, 255, 255, 0.25)',
-              borderWidth: 1.5,
-              borderDash: [4, 4],
-              pointRadius: 0
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            r: {
-              angleLines: { color: 'rgba(255, 255, 255, 0.08)' },
-              grid: { color: 'rgba(255, 255, 255, 0.08)' },
-              pointLabels: {
-                color: '#cbd5e1',
-                font: { family: 'Inter', size: 10, weight: '600' }
-              },
-              ticks: { display: false },
-              suggestedMin: 15,
-              suggestedMax: 100
-            }
-          },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: '#0c1322',
-              borderColor: '#00f0ff',
-              borderWidth: 1,
-              titleFont: { size: 12, weight: 'bold' },
-              callbacks: {
-                label: function(ctx) {
-                  return ` ${ctx.dataset.label}: ${ctx.raw.toFixed(1)}점`;
+    <script>
+        const points = ['P', 'A', 'B', 'C'];
+        const lines = [
+            { id: 'AP', fixedDist: null, isLoop: false }, // 기준 방향 (루프 오차 분배 제외)
+            { id: 'AB', fixedDist: 20, isLoop: true },
+            { id: 'BC', fixedDist: 20, isLoop: true },
+            { id: 'CA', fixedDist: null, isLoop: true } 
+        ];
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            for (let i = 0; i < 4; i++) {
+                // 측점 행 (Point Row)
+                let angleInputs = '';
+                if (i > 0) {
+                    angleInputs = `
+                        <input type="number" id="ang-deg-${i}" placeholder="도" class="input-cell angle-input text-center" oninput="calculate()">
+                        <input type="number" id="ang-min-${i}" placeholder="분" class="input-cell angle-input text-center" oninput="calculate()">
+                        <input type="number" id="ang-sec-${i}" step="0.1" placeholder="초" class="input-cell angle-input text-center" oninput="calculate()">
+                    `;
+                } else {
+                    angleInputs = `<span class="text-gray-400 text-xs">방향 기준점 (입력없음)</span>`;
                 }
-              }
+
+                tbody.innerHTML += `
+                    <tr class="bg-white border-b border-gray-200">
+                        <td class="border border-gray-300 p-2 text-center font-bold text-lg text-gray-800">${points[i]}</td>
+                        <td class="border border-gray-300 p-1 flex justify-center items-center space-x-1 h-10 ${i > 0 ? 'bg-yellow-50 bg-opacity-40' : 'bg-gray-50'}">
+                            ${angleInputs}
+                        </td>
+                        <td class="border border-gray-300 p-2 bg-gray-50"></td>
+                        <td class="border border-gray-300 p-2 bg-gray-50"></td>
+                        <td class="border border-gray-300 p-2 bg-gray-50"></td>
+                        <td class="border border-gray-300 p-2 bg-gray-50"></td>
+                        <td class="border border-gray-300 p-2 bg-gray-50"></td>
+                        <td class="border border-gray-300 p-2 bg-gray-50"></td>
+                        <td class="border border-gray-300 p-2 bg-gray-50"></td>
+                        <td class="border border-gray-300 p-2 calc-cell font-bold text-green-700 text-right" id="coord-x-${i}"></td>
+                        <td class="border border-gray-300 p-2 calc-cell font-bold text-green-700 text-right" id="coord-y-${i}"></td>
+                    </tr>
+                `;
+
+                // 측선 행 (Line Row)
+                const isFixed = lines[i].fixedDist !== null;
+                const distValue = isFixed ? lines[i].fixedDist : '';
+                const distAttr = isFixed ? 'readonly class="input-cell bg-gray-100 text-gray-500 font-bold text-center cursor-not-allowed"' : 'class="input-cell font-bold text-center"';
+                const rowBg = lines[i].isLoop ? 'bg-blue-50 bg-opacity-20' : 'bg-gray-100 bg-opacity-50';
+
+                tbody.innerHTML += `
+                    <tr class="${rowBg}">
+                        <td class="border border-gray-300 p-2"></td>
+                        <td class="border border-gray-300 p-2"></td>
+                        <td class="border border-gray-300 p-2 text-center font-bold ${lines[i].isLoop ? 'text-blue-800' : 'text-gray-600'}">${lines[i].id}</td>
+                        <td class="border border-gray-300 p-1">
+                            <input type="number" id="dist-${i}" value="${distValue}" step="0.001" ${distAttr} oninput="calculate()" placeholder="${i===0 ? '미입력시 0' : ''}">
+                        </td>
+                        <td class="border border-gray-300 p-1 flex justify-center space-x-1">
+                            <input type="number" id="az-deg-${i}" placeholder="도" class="input-cell angle-input text-center" oninput="calculate()">
+                            <input type="number" id="az-min-${i}" placeholder="분" class="input-cell angle-input text-center" oninput="calculate()">
+                            <input type="number" id="az-sec-${i}" step="0.1" placeholder="초" class="input-cell angle-input text-center" oninput="calculate()">
+                        </td>
+                        <td class="border border-gray-300 p-2 calc-cell text-right" id="lat-${i}"></td>
+                        <td class="border border-gray-300 p-2 calc-cell text-right" id="dep-${i}"></td>
+                        <td class="border border-gray-300 p-2 calc-cell text-blue-700 text-right" id="clat-${i}"></td>
+                        <td class="border border-gray-300 p-2 calc-cell text-blue-700 text-right" id="cdep-${i}"></td>
+                        <td class="border border-gray-300 p-2 bg-gray-50"></td>
+                        <td class="border border-gray-300 p-2 bg-gray-50"></td>
+                    </tr>
+                `;
             }
-          }
-        }
-      });
-    }
 
-    function updateGraphicViews(scoredItems) {
-      if (!chartInstance) return;
-
-      const labels = scoredItems.map(item => item.name.split(' (')[0]);
-      const scores = scoredItems.map(item => item.score);
-
-      chartInstance.data.labels = labels;
-      chartInstance.data.datasets[0].data = scores;
-      chartInstance.data.datasets[1].data = new Array(scores.length).fill(50);
-      chartInstance.update();
-
-      updateDiamondSvg(scoredItems);
-    }
-
-    function updateDiamondSvg(items) {
-      const nodesGroup = document.getElementById('svg-nodes-group');
-      const poly = document.getElementById('svg-skill-polygon');
-      const posMarker = document.getElementById('svg-position-marker');
-      if (!nodesGroup || !poly || !posMarker) return;
-
-      nodesGroup.innerHTML = '';
-      posMarker.innerHTML = '';
-
-      const posDef = POSITIONS[currentType].find(p => p.id === currentPosition);
-      if (posDef) {
-        const markerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        markerCircle.setAttribute('cx', posDef.fieldX);
-        markerCircle.setAttribute('cy', posDef.fieldY);
-        markerCircle.setAttribute('r', '10');
-        markerCircle.setAttribute('fill', 'rgba(245, 158, 11, 0.25)');
-        markerCircle.setAttribute('stroke', '#f59e0b');
-        markerCircle.setAttribute('stroke-width', '2');
-        markerCircle.setAttribute('stroke-dasharray', '3,3');
-        posMarker.appendChild(markerCircle);
-
-        const posText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        posText.setAttribute('x', posDef.fieldX);
-        posText.setAttribute('y', posDef.fieldY - 14);
-        posText.setAttribute('text-anchor', 'middle');
-        posText.setAttribute('fill', '#fbbf24');
-        posText.setAttribute('font-size', '10');
-        posText.setAttribute('font-weight', 'bold');
-        posText.textContent = `[${posDef.id}]`;
-        posMarker.appendChild(posText);
-      }
-
-      const centerX = 200;
-      const centerY = 165;
-      const maxRadius = 90;
-      const selected = items.slice(0, 6);
-      const points = [];
-
-      selected.forEach((item, i) => {
-        const angle = (i * (360 / selected.length) - 90) * (Math.PI / 180);
-        const radius = (item.score / 100) * maxRadius;
-        const x = centerX + radius * Math.cos(angle);
-        const y = centerY + radius * Math.sin(angle);
-
-        points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
-
-        const outerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        outerCircle.setAttribute('cx', x);
-        outerCircle.setAttribute('cy', y);
-        outerCircle.setAttribute('r', '5');
-        outerCircle.setAttribute('fill', item.isBasic ? '#10b981' : '#00f0ff');
-        outerCircle.setAttribute('stroke', '#ffffff');
-        outerCircle.setAttribute('stroke-width', '1.5');
-        nodesGroup.appendChild(outerCircle);
-
-        const labelRadius = maxRadius + 22;
-        const lx = centerX + labelRadius * Math.cos(angle);
-        const ly = centerY + labelRadius * Math.sin(angle);
-
-        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', lx);
-        text.setAttribute('y', ly + 4);
-        text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('fill', item.isBasic ? '#34d399' : '#38bdf8');
-        text.setAttribute('font-size', '10');
-        text.setAttribute('font-weight', '600');
-        text.textContent = `${item.name.split(' (')[0]} ${item.score.toFixed(0)}`;
-        nodesGroup.appendChild(text);
-      });
-
-      poly.setAttribute('points', points.join(' '));
-    }
-
-    function setGraphicView(view) {
-      currentView = view;
-      const radarBtn = document.getElementById('view-radar-btn');
-      const compareBtn = document.getElementById('view-compare-btn');
-      const fieldBtn = document.getElementById('view-field-btn');
-
-      const chartWrapper = document.getElementById('chart-canvas-wrapper');
-      const fieldWrapper = document.getElementById('field-graphic-wrapper');
-
-      [radarBtn, compareBtn, fieldBtn].forEach(btn => {
-        btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white flex items-center gap-1.5';
-      });
-
-      if (view === 'radar') {
-        radarBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 flex items-center gap-1.5 shadow';
-        chartWrapper.classList.remove('hidden');
-        fieldWrapper.classList.add('hidden');
-
-        chartInstance.config.type = 'radar';
-        chartInstance.config.options.scales = {
-          r: {
-            angleLines: { color: 'rgba(255, 255, 255, 0.08)' },
-            grid: { color: 'rgba(255, 255, 255, 0.08)' },
-            pointLabels: {
-              color: '#cbd5e1',
-              font: { family: 'Inter', size: 10, weight: '600' }
-            },
-            ticks: { display: false },
-            suggestedMin: 15,
-            suggestedMax: 100
-          }
-        };
-        chartInstance.update();
-      } else if (view === 'bar') {
-        compareBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 flex items-center gap-1.5 shadow';
-        chartWrapper.classList.remove('hidden');
-        fieldWrapper.classList.add('hidden');
-
-        chartInstance.config.type = 'bar';
-        chartInstance.config.options.scales = {
-          x: {
-            grid: { display: false },
-            ticks: { color: '#cbd5e1', font: { size: 10 } }
-          },
-          y: {
-            min: 0,
-            max: 100,
-            grid: { color: 'rgba(255, 255, 255, 0.08)' },
-            ticks: { color: '#94a3b8' }
-          }
-        };
-        chartInstance.update();
-      } else {
-        fieldBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 flex items-center gap-1.5 shadow';
-        chartWrapper.classList.add('hidden');
-        fieldWrapper.classList.remove('hidden');
-      }
-    }
-
-    function generateScoutingNarrative(overallScore, basicAvg, advAvg, sortedItems) {
-      const pName = document.getElementById('player-name').value || '대상 선수';
-      const pTeam = document.getElementById('player-team').value || '미정';
-      const pCareer = document.getElementById('player-career-span').value || '통산';
-      const posDef = POSITIONS[currentType].find(p => p.id === currentPosition);
-      const posName = posDef ? posDef.name : currentPosition;
-      const tierBadge = document.getElementById('player-tier-badge').textContent;
-
-      const topItem = sortedItems[0];
-      const secondItem = sortedItems[1];
-      const lowestItem = sortedItems[sortedItems.length - 1];
-
-      const gap = advAvg - basicAvg;
-      let gapComment = '';
-      if (Math.abs(gap) < 3.0) {
-        gapComment = `기본 클래식 성적(<span class="text-emerald-400 font-bold">${basicAvg.toFixed(1)}점</span>)과 세부 질적 지표(<span class="text-cyan-400 font-bold">${advAvg.toFixed(1)}점</span>)가 균일하게 일치하여, <strong>운의 개입이 적고 기량의 신뢰도가 매우 탄탄한 선수</strong>입니다.`;
-      } else if (gap > 0) {
-        gapComment = `세부 세이버/스탯캐스트 지표(<span class="text-cyan-400 font-bold">${advAvg.toFixed(1)}점</span>)가 클래식 성적(<span class="text-emerald-400 font-bold">${basicAvg.toFixed(1)}점</span>)보다 우수하여, <strong>현재 표면적 수치 대비 실제 타구의 질과 과정이 탁월한 저평가 우량주</strong>입니다.`;
-      } else {
-        gapComment = `클래식 수치(<span class="text-emerald-400 font-bold">${basicAvg.toFixed(1)}점</span>)가 세부 질적 지표(<span class="text-cyan-400 font-bold">${advAvg.toFixed(1)}점</span>)를 상회하고 있어, <strong>수비진의 지원이나 BABIP 행운의 영향이 일부 존재할 수 있음을 감안한 입체적 평가</strong>가 요구됩니다.`;
-      }
-
-      // 지표별 점수 뱃지 그리드 생성
-      const scoresBadges = sortedItems.map(item => `
-        <div class="px-2.5 py-1.5 rounded-lg bg-slate-900/80 border border-white/5 flex items-center justify-between text-[11px] font-mono">
-          <span class="text-slate-300 font-sans truncate mr-1.5">${item.name.split(' (')[0]}</span>
-          <span class="font-bold ${item.isBasic ? 'text-emerald-400' : 'text-cyan-400'}">${item.score.toFixed(1)}점</span>
-        </div>
-      `).join('');
-
-      const text = `
-        <div class="space-y-3">
-          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
-            <div class="flex items-center gap-2">
-              <span class="text-cyan-400 font-black text-sm">[종합 소견]</span>
-              <span class="text-white font-bold text-sm">${pName} (${posName} · ${pTeam} · ${pCareer})</span>
-            </div>
-            <div class="flex items-center gap-3 text-xs font-mono">
-              <span class="text-slate-300">종합 스코어: <strong class="text-cyan-300 text-base font-black">${overallScore.toFixed(1)}점</strong></span>
-              <span class="text-slate-400">등급: <strong class="text-amber-300">${tierBadge}</strong></span>
-            </div>
-          </div>
-
-          <!-- 점수 요약 스탯 바 -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs font-mono">
-            <div class="p-2 rounded-lg bg-slate-900/70 border border-emerald-500/20">
-              <span class="text-[10px] text-slate-400 block mb-0.5">기본 지표 평균</span>
-              <span class="text-emerald-400 font-bold text-sm">${basicAvg.toFixed(1)}점</span>
-            </div>
-            <div class="p-2 rounded-lg bg-slate-900/70 border border-cyan-500/20">
-              <span class="text-[10px] text-slate-400 block mb-0.5">세부 지표 평균</span>
-              <span class="text-cyan-400 font-bold text-sm">${advAvg.toFixed(1)}점</span>
-            </div>
-            <div class="p-2 rounded-lg bg-slate-900/70 border border-amber-500/20">
-              <span class="text-[10px] text-slate-400 block mb-0.5">최대 강점 지표</span>
-              <span class="text-amber-300 font-bold text-sm">${topItem.name.split(' (')[0]} (${topItem.score.toFixed(1)}점)</span>
-            </div>
-            <div class="p-2 rounded-lg bg-slate-900/70 border border-rose-500/20">
-              <span class="text-[10px] text-slate-400 block mb-0.5">보완 필요 지표</span>
-              <span class="text-rose-400 font-bold text-sm">${lowestItem.name.split(' (')[0]} (${lowestItem.score.toFixed(1)}점)</span>
-            </div>
-          </div>
-
-          <p class="leading-relaxed">
-            ${gapComment}
-          </p>
-
-          <div>
-            <span class="text-[11px] text-slate-400 font-bold block mb-1.5 font-mono">항목별 환산 평가 점수 (100점 만점 기준)</span>
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
-              ${scoresBadges}
-            </div>
-          </div>
-        </div>
-      `;
-
-      document.getElementById('scouting-text-card').innerHTML = text;
-    }
-
-    function switchPlayerType(type) {
-      if (currentType === type) return;
-      currentType = type;
-
-      const batterBtn = document.getElementById('mode-batter-btn');
-      const pitcherBtn = document.getElementById('mode-pitcher-btn');
-
-      if (type === 'batter') {
-        batterBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-cyan-500 text-slate-950 shadow-md';
-        pitcherBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-white';
-        document.getElementById('player-name').value = '타자 분석 선수';
-        document.getElementById('player-career-span').value = '통산 540G / 2,150타석';
-        currentPosition = 'CF';
-      } else {
-        pitcherBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-cyan-500 text-slate-950 shadow-md';
-        batterBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-white';
-        document.getElementById('player-name').value = '투수 분석 선수';
-        document.getElementById('player-career-span').value = '통산 120G / 650이닝';
-        currentPosition = 'SP';
-      }
-
-      populatePositionDropdown();
-      setupState();
-      renderInputs();
-      updateProfile();
-      recalculateAll();
-      showToast(`${type === 'batter' ? '타자' : '투수'} 분석 모드로 전환되었습니다.`);
-    }
-
-    function updateProfile() {
-      const name = document.getElementById('player-name').value || '선수';
-      document.getElementById('chart-legend-player').textContent = name;
-      recalculateAll();
-    }
-
-    function resetDataToBlank() {
-      setupState();
-      renderInputs();
-      recalculateAll();
-      showToast('스탯 입력값을 표준 초기치로 재설정했습니다.');
-    }
-
-    function copyScoutingCard() {
-      const name = document.getElementById('player-name').value;
-      const score = document.getElementById('custom-overall-score').textContent;
-      const tier = document.getElementById('player-tier-badge').textContent;
-      const textCard = document.getElementById('scouting-text-card').innerText;
-
-      const summary = `[나만의 야구 스카우팅 리포트]\n선수: ${name}\n종합 점수: ${score}점 (${tier})\n\n${textCard}\n- 나만의 야구 스카우팅 랩`;
-
-      const textArea = document.createElement('textarea');
-      textArea.value = summary;
-      document.body.appendChild(textArea);
-      textArea.select();
-      try {
-        document.execCommand('copy');
-        showToast('스카우팅 분석 리포트가 복사되었습니다.');
-      } catch (e) {
-        showToast('복사에 실패했습니다.');
-      }
-      document.body.removeChild(textArea);
-    }
-
-    /* 지정한 3개 그래픽(레이더, 랭킹바, 다이아몬드 스킬맵)과 실시간 종합 소견만 점수를 명시하여 .txt 형태로 저장 */
-    function exportToTXT() {
-      const btn = document.getElementById('txt-download-btn');
-      const originalText = btn.innerHTML;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> TXT 생성 중...`;
-      btn.disabled = true;
-
-      try {
-        const pName = document.getElementById('player-name').value || '선수';
-        const pTeam = document.getElementById('player-team').value || '소속';
-        const pCareer = document.getElementById('player-career-span').value || '통산';
-        const posDef = POSITIONS[currentType].find(p => p.id === currentPosition) || POSITIONS[currentType][0];
-        const overallScore = document.getElementById('custom-overall-score').textContent.trim();
-        const basicScore = document.getElementById('basic-score-portion').textContent.trim();
-        const advScore = document.getElementById('adv-score-portion').textContent.trim();
-        const tierBadge = document.getElementById('player-tier-badge').textContent.trim();
-
-        const basicList = METRICS_CATALOG[currentType].basic;
-        const advList = METRICS_CATALOG[currentType].adv;
-
-        const basicItems = basicList.map(item => ({
-          name: item.name,
-          shortName: item.name.split(' (')[0],
-          raw: activeValues[item.id],
-          unit: item.unit,
-          score: normalizeScore(item, activeValues[item.id]),
-          weight: activeWeights[item.id] || 0
-        }));
-
-        const advItems = advList.map(item => ({
-          name: item.name,
-          shortName: item.name.split(' (')[0],
-          raw: activeValues[item.id],
-          unit: item.unit,
-          score: normalizeScore(item, activeValues[item.id]),
-          weight: activeWeights[item.id] || 0
-        }));
-
-        const allItems = [...basicItems, ...advItems];
-        const sortedAll = [...allItems].sort((a, b) => b.score - a.score);
-
-        // 텍스트 구분선 및 헤더 헬퍼
-        const divider = '='.repeat(70);
-        const subDivider = '-'.repeat(70);
-
-        // 1. 육각형 레이더 텍스트 데이터 (각 지표별 환산 점수 및 리그 평균 대비)
-        let radarSection = `[ 1. 육각형 레이더 분석 (지표별 환산 점수) ]\n${subDivider}\n`;
-        radarSection += `  * 기준점수: 리그 평균 50.0점 기준 (0 ~ 100점 스케일)\n\n`;
-        radarSection += `  항목명                          입력값           환산 점수     가중치\n`;
-        radarSection += `  --------------------------------------------------------------------\n`;
-        allItems.forEach(item => {
-          const rawStr = `${item.raw} ${item.unit}`.padEnd(14, ' ');
-          const scoreBar = `[${'■'.repeat(Math.round(item.score / 10)).padEnd(10, ' ')}]`;
-          radarSection += `  - ${item.name.padEnd(26, ' ')} : ${rawStr} -> ${item.score.toFixed(1).padStart(5, ' ')}점 ${scoreBar} (${item.weight}%)\n`;
-        });
-
-        // 2. 기본 vs 세부 랭킹 바 분석 (기본 지표 랭킹 vs 세부 지표 랭킹 순위 및 점수 비교)
-        const sortedBasic = [...basicItems].sort((a, b) => b.score - a.score);
-        const sortedAdv = [...advItems].sort((a, b) => b.score - a.score);
-
-        let rankBarSection = `\n[ 2. 기본 vs 세부 랭킹 바 분석 ]\n${subDivider}\n`;
-        rankBarSection += `  ■ 기본 데이터(클래식) 평균: ${basicScore}점 | 가중치 합: ${document.getElementById('basic-weight-summary').textContent.replace('비중: ', '')}\n`;
-        sortedBasic.forEach((item, idx) => {
-          const bar = '■'.repeat(Math.round(item.score / 5));
-          rankBarSection += `    ${idx + 1}위. ${item.shortName.padEnd(14, ' ')} : ${item.score.toFixed(1)}점  ${bar}\n`;
-        });
-
-        rankBarSection += `\n  ■ 세부 데이터(세이버·스탯캐스트) 평균: ${advScore}점 | 가중치 합: ${document.getElementById('adv-weight-summary').textContent.replace('비중: ', '')}\n`;
-        sortedAdv.forEach((item, idx) => {
-          const bar = '■'.repeat(Math.round(item.score / 5));
-          rankBarSection += `    ${idx + 1}위. ${item.shortName.padEnd(14, ' ')} : ${item.score.toFixed(1)}점  ${bar}\n`;
-        });
-
-        // 3. 다이아몬드 스킬맵 분석 (필드 포지션 연동 및 주요 6대 축 점수)
-        let diamondSection = `\n[ 3. 다이아몬드 스킬맵 분석 ]\n${subDivider}\n`;
-        diamondSection += `  ■ 필드 포지션: ${posDef.name}\n`;
-        diamondSection += `  ■ 포지션 특성: ${posDef.desc}\n`;
-        diamondSection += `  ■ 다이아몬드 핵심 스킬 6개 축 환산 점수:\n`;
-        const diamondTop6 = allItems.slice(0, 6);
-        diamondTop6.forEach(item => {
-          diamondSection += `    - [${item.shortName}] : ${item.score.toFixed(1)}점 (실제 입력치: ${item.raw}${item.unit})\n`;
-        });
-
-        // 4. 실시간 스카우팅 종합 소견 (점수 및 상세 소견)
-        const gap = parseFloat(advScore) - parseFloat(basicScore);
-        let gapAnalysis = '';
-        if (Math.abs(gap) < 3.0) {
-          gapAnalysis = `기본 클래식 성적(${basicScore}점)과 세부 질적 지표(${advScore}점)가 일치하여, 운의 개입이 적고 본인의 실력 신뢰도가 매우 탄탄한 선수입니다.`;
-        } else if (gap > 0) {
-          gapAnalysis = `세부 세이버/스탯캐스트 지표(${advScore}점)가 클래식 성적(${basicScore}점)보다 높아, 현재 표면적 기록 대비 실제 타구의 질과 기량이 탁월한 저평가 우량주입니다.`;
-        } else {
-          gapAnalysis = `클래식 수치(${basicScore}점)가 세부 질적 지표(${advScore}점)를 상회하고 있어, 수비진의 도움이나 BABIP 등 운의 영향이 일부 존재할 수 있음을 감안한 입체적 평가가 필요합니다.`;
+            // 종점 (폐합점 Q) 행
+            tbody.innerHTML += `
+                <tr class="bg-white border-t-2 border-gray-400">
+                    <td class="border border-gray-300 p-2 text-center font-bold text-lg text-red-600">Q</td>
+                    <td class="border border-gray-300 p-2 bg-gray-50" colspan="8"></td>
+                    <td class="border border-gray-300 p-2 calc-cell font-bold text-red-600 text-right" id="coord-x-4"></td>
+                    <td class="border border-gray-300 p-2 calc-cell font-bold text-red-600 text-right" id="coord-y-4"></td>
+                </tr>
+            `;
         }
 
-        let narrativeSection = `\n[ 4. 실시간 스카우팅 종합 소견 ]\n${subDivider}\n`;
-        narrativeSection += `  ■ 나만의 종합 스카우팅 점수 : ${overallScore}점 / 100점 만점\n`;
-        narrativeSection += `  ■ 스카우팅 등급 : ${tierBadge}\n`;
-        narrativeSection += `  ■ 기본 지표 평균 : ${basicScore}점\n`;
-        narrativeSection += `  ■ 세부 지표 평균 : ${advScore}점\n`;
-        narrativeSection += `  ■ 최고 강점 항목 : ${sortedAll[0].shortName} (${sortedAll[0].score.toFixed(1)}점)\n`;
-        narrativeSection += `  ■ 보완 필요 항목 : ${sortedAll[sortedAll.length - 1].shortName} (${sortedAll[sortedAll.length - 1].score.toFixed(1)}점)\n\n`;
-        narrativeSection += `  ■ 정밀 소견 평문:\n`;
-        narrativeSection += `    ${gapAnalysis}\n\n`;
-        narrativeSection += `  ■ 전체 항목별 환산 점수 랭킹:\n`;
-        sortedAll.forEach((item, idx) => {
-          narrativeSection += `    ${String(idx + 1).padStart(2, ' ')}. ${item.shortName.padEnd(16, ' ')} : ${item.score.toFixed(1)}점 (가중치 ${item.weight}%)\n`;
-        });
+        function calculateAzimuths() {
+            // 기준 측선 AP의 초기 방위각
+            const azDegAP = parseFloat(document.getElementById('az-deg-0').value) || 0;
+            const azMinAP = parseFloat(document.getElementById('az-min-0').value) || 0;
+            const azSecAP = parseFloat(document.getElementById('az-sec-0').value) || 0;
+            let azAP = azDegAP + (azMinAP / 60) + (azSecAP / 3600);
 
-        // 최종 텍스트 파일 조합 (선택한 4가지 영역만 구성)
-        const finalTxtContent = `${divider}
- 야구 선수 스카우팅 분석 리포트 (.TXT)
- 대상 선수: ${pName} | 포지션: ${posDef.name}
- 소속 및 연도: ${pTeam} | 통산 이력: ${pCareer}
- 생성일자: ${new Date().toLocaleString('ko-KR')}
-${divider}
+            // 교각 A, B, C (인덱스 1, 2, 3)
+            const angles = [0]; // 인덱스 0(P)는 없음
+            for(let i = 1; i <= 3; i++) {
+                const d = parseFloat(document.getElementById(`ang-deg-${i}`).value) || 0;
+                const m = parseFloat(document.getElementById(`ang-min-${i}`).value) || 0;
+                const s = parseFloat(document.getElementById(`ang-sec-${i}`).value) || 0;
+                angles.push(d + (m / 60) + (s / 3600));
+            }
 
-${radarSection}
-${rankBarSection}
-${diamondSection}
-${narrativeSection}
-${divider}
-* 본 리포트는 사용자가 직접 설정한 가중치와 기준치로 계산된 분석 데이터입니다.
-${divider}`;
+            // 방위각 연쇄 계산: 다음 방위각 = 이전 방위각 + 교각 (+ 180 필요시)
+            let azAB = (azAP + angles[1]) % 360; // AP는 백사이트 기준이므로 180도 추가 안함
+            if (azAB < 0) azAB += 360;
 
-        // Blob 생성 및 .txt 다운로드 트리거
-        const blob = new Blob([finalTxtContent], { type: 'text/plain;charset=utf-8' });
-        const downloadUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = downloadUrl;
-        a.download = `${pName}_스카우팅분석리포트_${new Date().toISOString().slice(0, 10)}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(downloadUrl);
+            let azBC = (azAB + angles[2] + 180) % 360;
+            if (azBC < 0) azBC += 360;
 
-        showToast('지정한 4개 항목(점수 포함)이 담긴 .txt 파일이 저장되었습니다!');
-      } catch (err) {
-        console.error('TXT Export Error:', err);
-        showToast('TXT 파일 생성 중 오류가 발생했습니다.');
-      } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-      }
-    }
+            let azCA = (azBC + angles[3] + 180) % 360;
+            if (azCA < 0) azCA += 360;
 
-    function showToast(msg) {
-      const toast = document.getElementById('toast');
-      const msgElem = document.getElementById('toast-message');
-      msgElem.textContent = msg;
-      toast.classList.remove('translate-y-20', 'opacity-0');
-      toast.classList.add('translate-y-0', 'opacity-100');
+            function decToDMS(decimal) {
+                let d = Math.floor(decimal);
+                let mFloat = (decimal - d) * 60;
+                let m = Math.floor(mFloat);
+                let s = (mFloat - m) * 60;
+                return { d, m, s: Math.round(s * 10) / 10 };
+            }
 
-      setTimeout(() => {
-        toast.classList.add('translate-y-20', 'opacity-0');
-        toast.classList.remove('translate-y-0', 'opacity-100');
-      }, 2500);
-    }
+            const azs = [azAB, azBC, azCA];
+            for(let i = 1; i <= 3; i++) {
+                const dms = decToDMS(azs[i-1]);
+                document.getElementById(`az-deg-${i}`).value = dms.d;
+                document.getElementById(`az-min-${i}`).value = dms.m;
+                document.getElementById(`az-sec-${i}`).value = dms.s;
+            }
 
-    window.onload = function() {
-      initApp();
-    };
-  </script>
+            calculate();
+        }
+
+        function calculate() {
+            const startX = parseFloat(document.getElementById('start-x').value) || 0;
+            const startY = parseFloat(document.getElementById('start-y').value) || 0;
+
+            // 측점 P 초기 좌표 설정
+            document.getElementById('coord-x-0').innerText = startX.toFixed(3);
+            document.getElementById('coord-y-0').innerText = startY.toFixed(3);
+
+            let sumDistLoop = 0;
+            let sumLatLoop = 0;
+            let sumDepLoop = 0;
+            let sumAngDecimal = 0;
+
+            const calcData = [];
+
+            // 1단계: 내각 총합 계산 (A, B, C 교각만)
+            for (let i = 1; i < 4; i++) {
+                const deg = parseFloat(document.getElementById(`ang-deg-${i}`).value) || 0;
+                const min = parseFloat(document.getElementById(`ang-min-${i}`).value) || 0;
+                const sec = parseFloat(document.getElementById(`ang-sec-${i}`).value) || 0;
+                sumAngDecimal += deg + (min / 60) + (sec / 3600);
+            }
+
+            let eD = Math.floor(sumAngDecimal);
+            let eMFloat = (sumAngDecimal - eD) * 60;
+            let eM = Math.floor(eMFloat);
+            let eS = (eMFloat - eM) * 60;
+            
+            document.getElementById('angle-error').innerText = sumAngDecimal > 0 ? `${eD}° ${eM}' ${eS.toFixed(1)}"` : `0° 0' 0.0"`;
+
+            // 2단계: 위거, 경거 계산 (모든 측선)
+            for (let i = 0; i < 4; i++) {
+                const dist = parseFloat(document.getElementById(`dist-${i}`).value) || 0;
+                const deg = parseFloat(document.getElementById(`az-deg-${i}`).value) || 0;
+                const min = parseFloat(document.getElementById(`az-min-${i}`).value) || 0;
+                const sec = parseFloat(document.getElementById(`az-sec-${i}`).value) || 0;
+
+                const decimalDeg = deg + (min / 60) + (sec / 3600);
+                const rad = decimalDeg * Math.PI / 180;
+
+                const lat = dist * Math.cos(rad);
+                const dep = dist * Math.sin(rad);
+
+                // 루프에 포함되는 측선 (AB, BC, CA)만 합산
+                if (lines[i].isLoop) {
+                    sumDistLoop += dist;
+                    sumLatLoop += lat;
+                    sumDepLoop += dep;
+                }
+
+                calcData.push({ dist, lat, dep });
+
+                document.getElementById(`lat-${i}`).innerText = dist ? lat.toFixed(3) : '';
+                document.getElementById(`dep-${i}`).innerText = dist ? dep.toFixed(3) : '';
+            }
+
+            // 3단계: 컴퍼스 법칙 적용 (오차는 루프에만 분배)
+            const errorX = sumLatLoop; 
+            const errorY = sumDepLoop; 
+            
+            let currentX = startX;
+            let currentY = startY;
+
+            let sumCorrectedLat = 0;
+            let sumCorrectedDep = 0;
+
+            calcData.forEach((data, i) => {
+                let corrLat = 0, corrDep = 0;
+                let hasValidDist = (i === 0) || (data.dist > 0); // AP 측선은 거리가 없어도 계산 넘어감
+
+                if (hasValidDist) {
+                    if (lines[i].isLoop && sumDistLoop > 0) {
+                        // 루프 내 측선: 오차 분배
+                        corrLat = data.lat - (errorX * (data.dist / sumDistLoop));
+                        corrDep = data.dep - (errorY * (data.dist / sumDistLoop));
+                        sumCorrectedLat += corrLat;
+                        sumCorrectedDep += corrDep;
+                    } else {
+                        // 루프 밖 측선(AP): 측정값 그대로 사용
+                        corrLat = data.lat;
+                        corrDep = data.dep;
+                    }
+
+                    document.getElementById(`clat-${i}`).innerText = (data.dist || i > 0) ? corrLat.toFixed(3) : '';
+                    document.getElementById(`cdep-${i}`).innerText = (data.dist || i > 0) ? corrDep.toFixed(3) : '';
+
+                    currentX += corrLat;
+                    currentY += corrDep;
+
+                    // 다음 측점 좌표 기록 (i=0 이면 A, i=3 이면 Q)
+                    document.getElementById(`coord-x-${i + 1}`).innerText = currentX.toFixed(3);
+                    document.getElementById(`coord-y-${i + 1}`).innerText = currentY.toFixed(3);
+                } else {
+                    document.getElementById(`clat-${i}`).innerText = '';
+                    document.getElementById(`cdep-${i}`).innerText = '';
+                    document.getElementById(`coord-x-${i + 1}`).innerText = '';
+                    document.getElementById(`coord-y-${i + 1}`).innerText = '';
+                }
+            });
+
+            // 4단계: 요약 정보 렌더링
+            const totalClosureError = Math.sqrt(Math.pow(errorX, 2) + Math.pow(errorY, 2));
+            let closureRatioStr = "1 : 0";
+            if (totalClosureError > 0 && sumDistLoop > 0) {
+                const ratio = Math.round(sumDistLoop / totalClosureError);
+                closureRatioStr = `1 : ${ratio.toLocaleString()}`;
+            }
+
+            const tfoot = document.getElementById('table-foot');
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="3" class="border border-gray-300 p-2 text-center text-red-600 font-bold">총계 및 오차 (루프 기준)</td>
+                    <td class="border border-gray-300 p-2 text-center text-red-600 font-bold">${sumDistLoop > 0 ? sumDistLoop.toFixed(3) : ''}</td>
+                    <td class="border border-gray-300 p-2 text-center">-</td>
+                    <td class="border border-gray-300 p-2 text-right text-red-500">Ex: ${sumLatLoop ? sumLatLoop.toFixed(4) : ''}</td>
+                    <td class="border border-gray-300 p-2 text-right text-red-500">Ey: ${sumDepLoop ? sumDepLoop.toFixed(4) : ''}</td>
+                    <td class="border border-gray-300 p-2 text-right text-blue-700">${sumCorrectedLat ? sumCorrectedLat.toFixed(3) : ''}</td>
+                    <td class="border border-gray-300 p-2 text-right text-blue-700">${sumCorrectedDep ? sumCorrectedDep.toFixed(3) : ''}</td>
+                    <td colspan="2" class="border border-gray-300 p-2 bg-gray-200"></td>
+                </tr>
+            `;
+
+            document.getElementById('closure-error').innerText = sumDistLoop ? totalClosureError.toFixed(4) : '0.000';
+            document.getElementById('total-distance').innerText = sumDistLoop ? sumDistLoop.toFixed(3) : '0.000';
+            document.getElementById('closure-ratio').innerText = closureRatioStr;
+        }
+
+        function clearData() {
+            for (let i = 0; i < 4; i++) {
+                if (lines[i].fixedDist === null) {
+                    document.getElementById(`dist-${i}`).value = '';
+                }
+                if (i > 0) {
+                    document.getElementById(`ang-deg-${i}`).value = '';
+                    document.getElementById(`ang-min-${i}`).value = '';
+                    document.getElementById(`ang-sec-${i}`).value = '';
+                }
+                document.getElementById(`az-deg-${i}`).value = '';
+                document.getElementById(`az-min-${i}`).value = '';
+                document.getElementById(`az-sec-${i}`).value = '';
+            }
+            document.getElementById('start-x').value = '500.000';
+            document.getElementById('start-y').value = '100.000';
+            calculate();
+        }
+
+        function loadExample() {
+            // P 초기 좌표
+            document.getElementById('start-x').value = '500.000';
+            document.getElementById('start-y').value = '100.000';
+
+            // 방향 기준선 AP 방위각
+            document.getElementById('az-deg-0').value = 125;
+            document.getElementById('az-min-0').value = 15;
+            document.getElementById('az-sec-0').value = 30;
+            document.getElementById('dist-0').value = 0; // P와 A가 일치하도록 (또는 원하시는 임의거리 입력 가능)
+
+            // A 교각
+            document.getElementById('ang-deg-1').value = 58;
+            document.getElementById('ang-min-1').value = 8;
+            document.getElementById('ang-sec-1').value = 1;
+            
+            // B 교각
+            document.getElementById('ang-deg-2').value = 211;
+            document.getElementById('ang-min-2').value = 3;
+            document.getElementById('ang-sec-2').value = 11;
+
+            // C 교각
+            document.getElementById('ang-deg-3').value = 83;
+            document.getElementById('ang-min-3').value = 8;
+            document.getElementById('ang-sec-3').value = 13;
+
+            // 거리 CA (AB, BC는 20 고정)
+            document.getElementById('dist-3').value = 20.000;
+
+            // 방위각 (요청하신 사용자 입력값 적용 - 자동계산을 덮어씀)
+            document.getElementById('az-deg-1').value = 183; document.getElementById('az-min-1').value = 23; document.getElementById('az-sec-1').value = 31; // AB
+            document.getElementById('az-deg-2').value = 214; document.getElementById('az-min-2').value = 26; document.getElementById('az-sec-2').value = 32; // BC
+            document.getElementById('az-deg-3').value = 117; document.getElementById('az-min-3').value = 34; document.getElementById('az-sec-3').value = 45; // CA
+            
+            calculate();
+        }
+
+        // 초기 화면 로드 시 테이블 렌더링 및 계산 실행
+        window.onload = function() {
+            renderTable();
+            calculate();
+        };
+    </script>
 </body>
 </html>
